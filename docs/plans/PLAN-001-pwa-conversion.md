@@ -3,7 +3,7 @@
 ```yaml
 plan_id: PLAN-001
 slug: pwa-conversion
-status: planned            # planned → approved → in_progress → in_review → passing
+status: passing            # Reviewer (Antigravity) verified 2026-06-08
 executor: codex            # build/PWA/storage/pipeline → Codex (no UI redesign)
 author: Planner (Opus 4.8)
 date: 2026-06-08

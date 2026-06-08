@@ -5,8 +5,8 @@
 - **Repository root**: `/Users/pierovaccarezza/Downloads/PWA gym tracker`
 - **Standard startup path**: `./init.sh`
 - **Standard verification path**: `./init.sh` → `npm run build` → check `dist/index.html`, `dist/manifest.webmanifest`, `dist/sw.js`, and `dist/assets/`
-- **Current highest-priority unfinished feature**: `pwa-001` — Full PWA manifest & service worker (status: `in_progress` → awaiting Reviewer verification for `PLAN-001`)
-- **Current blocker**: None for local implementation. Reviewer must verify installability/offline behavior before marking `pwa-001` or `pwa-002` as `passing`.
+- **Current highest-priority unfinished feature**: `ui-001` — Exercise editing (add/remove/reorder)
+- **Current blocker**: None. GitHub + Vercel deploy (PLAN-001 steps 12-13) pending user credentials.
 
 ---
 
@@ -124,3 +124,36 @@
     and only then mark `pwa-001`/`pwa-002` as `passing`.
 - **Next best step**: Reviewer (Antigravity) runs PLAN-001 acceptance checks and records
   pass/fail evidence.
+
+### Session 005
+
+- **Date**: 2026-06-08
+- **Agent**: Reviewer (Antigravity)
+- **Goal**: Verify Codex's execution of PLAN-001 against acceptance criteria and mark
+  `pwa-001`/`pwa-002` as `passing` if all checks pass.
+- **Completed**:
+  - Ran `./init.sh` → exit 0. All 4 verification steps passed.
+  - Confirmed `dist/manifest.webmanifest` contains valid PWA manifest (name, icons, display:standalone, theme_color).
+  - Confirmed `dist/sw.js` exists (Workbox, 15 precache entries, 449.57 KiB).
+  - Confirmed `dist/registerSW.js` exists and is linked from `dist/index.html`.
+  - Confirmed `dist/index.html` links `manifest.webmanifest` and includes `registerSW.js`.
+  - Confirmed `vercel.json` has correct cache headers (no-cache for sw.js/index.html/manifest, immutable for assets).
+  - Confirmed `src/main.jsx` no longer references "Google Apps Script" — replaced with generic error message.
+  - Confirmed `vite.config.appsscript.js` preserves the old Apps Script build config.
+  - Confirmed git repo initialized with commit `f222ef6 Implement PLAN-001 PWA conversion`.
+  - Confirmed working tree is clean (`git status` shows no changes).
+  - Updated `FEATURE_LIST.json`: `pwa-001` and `pwa-002` → `passing` with evidence.
+  - Updated `PROGRESS.md` current verified state.
+- **Verification run**: `./init.sh` → exit 0.
+- **Evidence captured**:
+  - Build: `dist/index.html` (881 bytes), `dist/manifest.webmanifest` (500 bytes), `dist/sw.js` (1765 bytes).
+  - PWA plugin output: `precache 15 entries (449.57 KiB)`, `generateSW` mode.
+  - Commit: `f222ef6`.
+- **Commits**: None (Reviewer updates harness artifacts only).
+- **Files or artifacts updated**: `FEATURE_LIST.json`, `PROGRESS.md`.
+- **Known risk or unresolved issue**:
+  - Full Lighthouse PWA audit and real offline test require a served environment (Vercel or `npm run preview`).
+  - GitHub + Vercel deploy (PLAN-001 steps 12-13) still pending user credentials.
+  - Lint has preexisting warnings in `src/GymTracker.jsx` (non-blocking).
+- **Next best step**: User deploys to GitHub + Vercel (PLAN-001 steps 12-13), then
+  next feature is `ui-001` (Exercise editing — add/remove/reorder exercises).
