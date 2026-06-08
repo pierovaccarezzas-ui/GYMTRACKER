@@ -1,6 +1,6 @@
 {
   "project": "GymTrack PWA",
-  "last_updated": "2026-06-08T13:18:00-04:00",
+  "last_updated": "2026-06-08T18:53:18-04:00",
   "rules": {
     "single_active_feature": true,
     "passing_requires_evidence": true,
@@ -94,12 +94,12 @@
       "area": "ui",
       "title": "Exercise editing — add/remove/reorder exercises",
       "user_visible_behavior": "User can add custom exercises, remove existing ones, and reorder them within a day.",
-      "status": "not_started",
-      "executor": "v0",
+      "status": "in_progress",
+      "executor": "codex",
       "verification": "Add exercise, verify it appears. Remove exercise, verify it disappears. Reorder and verify new order persists.",
       "evidence": null,
-      "plan_id": null,
-      "notes": "Currently exercises are hardcoded in MAIN/MANT arrays."
+      "plan_id": "PLAN-002",
+      "notes": "Currently exercises are hardcoded in MAIN/MANT arrays. PLAN-002 unifies custom/addedEx/deletedEx + order into a single sessionExercises structure and adds ↑/↓ reordering. Executor reassigned v0→codex (state/storage refactor); visual drag-and-drop polish could be a later v0 plan."
     },
     {
       "id": "ui-002",

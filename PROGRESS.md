@@ -5,8 +5,8 @@
 - **Repository root**: `/Users/pierovaccarezza/Downloads/PWA gym tracker`
 - **Standard startup path**: `./init.sh`
 - **Standard verification path**: `./init.sh` → `npm run build` → check `dist/index.html`, `dist/manifest.webmanifest`, `dist/sw.js`, and `dist/assets/`
-- **Current highest-priority unfinished feature**: `ui-001` — Exercise editing (add/remove/reorder)
-- **Current blocker**: None. Vercel deployment (PLAN-001 step 13) remaining (GitHub push completed).
+- **Current highest-priority unfinished feature**: `ui-001` — Exercise editing (add/remove/reorder), status `in_progress`, awaiting Reviewer verification for `PLAN-002`
+- **Current blocker**: None for PLAN-002 implementation. Vercel deployment (PLAN-001 step 13) also remains pending.
 
 ---
 
@@ -85,6 +85,34 @@
   - Repo is **not** under git yet; `core-003` deploy target (Apps Script) is being superseded.
 - **Next best step**: User approves PLAN-001 (status → `approved`), then the Executor (Codex)
   runs it, starting by resolving the working-tree state above and `git init`.
+
+### Session 004
+
+- **Date**: 2026-06-08
+- **Agent**: Planner (Opus 4.8)
+- **Goal**: Plan exercise reordering + unified `sessionExercises` storage in
+  `src/GymTracker.jsx` (covers `ui-001`).
+- **Completed**:
+  - Read `AGENTS.md`, `PROGRESS.md`, `FEATURE_LIST.json` and full `src/GymTracker.jsx`.
+  - Confirmed there is **no Antigravity artifact** in the repo (`docs/`, `scratch/`,
+    walkthroughs, progress logs); per user direction, the Planner designed the schema.
+  - Wrote `docs/plans/PLAN-002-exercise-reorder-unified-storage.md` (executor: codex):
+    consolidates `custom`/`addedEx`/`deletedEx` + implicit order into one per-session
+    `sessionExercises` structure (`order`/`overrides`/`added`/`deleted`) with a
+    code-reconciliation rule and a legacy-migration step; adds ↑/↓ reordering (no new deps).
+  - Updated `FEATURE_LIST.json`: `ui-001` → `planned`, `plan_id: PLAN-002`, executor
+    reassigned `v0`→`codex` (state/storage refactor; rationale recorded in the feature notes).
+- **Verification run**: None (Planner role does not execute build/verification).
+- **Evidence captured**: Plan file at `docs/plans/PLAN-002-exercise-reorder-unified-storage.md`.
+- **Commits**: None (repo still not under git; `git init` remains a PLAN-001 task).
+- **Files or artifacts updated**: `docs/plans/PLAN-002-...md`, `PROGRESS.md`, `FEATURE_LIST.json`.
+- **Known risk or unresolved issue**:
+  - Reconciliation between stored `order` and code-defined base exercises is the delicate
+    part (must not resurrect deleted nor drop newly-added base exercises) — flagged in PLAN-002.
+  - `design_source` is the Planner, not Antigravity (no such artifact existed). If a real
+    Antigravity spec appears, re-validate PLAN-002 against it before execution.
+- **Next best step**: User approves PLAN-002 (status → `approved`); Executor (Codex) implements
+  it in `src/GymTracker.jsx` after `./init.sh` passes.
 
 ### Session 004
 
@@ -173,3 +201,40 @@
 - **Known risk or unresolved issue**:
   - Vercel deploy (PLAN-001 step 13) is still pending.
 - **Next best step**: User connects the GitHub repository to Vercel for deployment, then next feature is `ui-001`.
+
+### Session 007
+
+- **Date**: 2026-06-08
+- **Agent**: Executor (Codex)
+- **Goal**: Execute approved `PLAN-002` for exercise reordering and unified
+  `sessionExercises` storage.
+- **Completed**:
+  - Added pure legacy-migration and session-resolution helpers with base-exercise
+    reconciliation.
+  - Replaced `custom`/`addedEx`/`deletedEx` state and writes with the per-session
+    `sessionExercises` structure; legacy keys remain read-only migration inputs.
+  - Added persistent move, add, delete, and override handlers using `sessionExercises`.
+  - Added `ChevronUp`/`ChevronDown` controls with disabled first/last states.
+  - Updated today, week, session progress, totals, and exercise dots to use resolved sessions.
+  - Updated `FEATURE_LIST.json`: `ui-001` → `in_progress`; did not mark it `passing`.
+- **Verification run**:
+  - Baseline and final `./init.sh` → exit 0.
+  - `npm run build` → exit 0; PWA build artifacts generated.
+  - Browser smoke → no console errors; controls render without overlap.
+  - Reordered an exercise and reloaded → order persisted; restored local test order afterward.
+  - Added, edited, deleted, and reloaded a test exercise → each operation persisted.
+  - Isolated browser migration test → legacy override, added exercise, and deleted base
+    exercise migrated without loss.
+  - Isolated reconciliation test → base exercises missing from stored order appeared from code;
+    deleted base exercise stayed deleted after reload.
+- **Evidence captured**: `sessionExercises` is the only exercise-state key written after
+  migration; legacy keys are only read during initial migration. Browser smoke reported zero
+  console errors.
+- **Commits**: `Implement PLAN-002 unified exercise storage and reordering`.
+- **Files or artifacts updated**: `src/GymTracker.jsx`, `FEATURE_LIST.json`, `PROGRESS.md`,
+  `docs/plans/PLAN-002-exercise-reorder-unified-storage.md`.
+- **Known risk or unresolved issue**:
+  - `npm run lint` still reports five preexisting issues in `src/GymTracker.jsx`; `init.sh`
+    continues to treat lint as non-blocking.
+  - Reviewer must verify PLAN-002 acceptance criteria before marking `ui-001` as `passing`.
+- **Next best step**: Reviewer (Antigravity) verifies PLAN-002 and records pass/fail evidence.

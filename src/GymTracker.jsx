@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Check, ChevronLeft, ChevronRight, Pencil, X, Trash2, Plus } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Pencil, X, Trash2, Plus } from "lucide-react";
 
 // ── STORAGE ───────────────────────────────────────────────────────────────
 const store = {
@@ -103,11 +103,47 @@ function raceTime(paceStr, km) {
   const min = (m + s / 60) * km, h = Math.floor(min / 60), mm = Math.floor(min % 60);
   return h > 0 ? `${h}h${String(mm).padStart(2,"0")}` : `${Math.floor(min)}:${String(Math.round((min%1)*60)).padStart(2,"0")}`;
 }
-function sessProgress(sess, done, addedEx, deletedEx) {
-  const ids = [
-    ...sess.exercises.filter(e => !deletedEx.includes(e.id)).map(e => e.id),
-    ...(addedEx[sess.id] || []).filter(e => !deletedEx.includes(e.id)).map(e => e.id),
-  ];
+function migrateLegacy(custom = {}, addedEx = {}, deletedEx = [], allSessions = []) {
+  const migrated = {};
+  allSessions.forEach(session => {
+    const addedList = addedEx[session.id] || [];
+    const relevantIds = new Set([...session.exercises.map(ex => ex.id), ...addedList.map(ex => ex.id)]);
+    migrated[session.id] = {
+      order: [...session.exercises.map(ex => ex.id), ...addedList.map(ex => ex.id)],
+      overrides: Object.fromEntries(Object.entries(custom).filter(([id]) => relevantIds.has(id))),
+      added: Object.fromEntries(addedList.map(ex => [ex.id, ex])),
+      deleted: deletedEx.filter(id => relevantIds.has(id)),
+    };
+  });
+  return migrated;
+}
+
+function resolveSession(session, seForSession = {}) {
+  const base = Object.fromEntries(session.exercises.map(ex => [ex.id, ex]));
+  const added = seForSession.added || {};
+  const overrides = seForSession.overrides || {};
+  const deleted = new Set(seForSession.deleted || []);
+  const baseIds = session.exercises.map(ex => ex.id);
+  const addedIds = Object.keys(added);
+  const seed = Array.isArray(seForSession.order) ? seForSession.order : [...baseIds, ...addedIds];
+  const order = [...new Set(seed)].filter(id => base[id] || added[id]);
+
+  baseIds.forEach(id => {
+    if (!order.includes(id) && !deleted.has(id)) order.push(id);
+  });
+  addedIds.forEach(id => {
+    if (!order.includes(id)) order.push(id);
+  });
+
+  const visibleOrder = order.filter(id => !deleted.has(id));
+  return {
+    order: visibleOrder,
+    items: visibleOrder.map(id => ({ ...(base[id] || added[id]), ...(overrides[id] || {}) })),
+  };
+}
+
+function sessProgress(sess, done, sessionExercises) {
+  const ids = resolveSession(sess, sessionExercises[sess.id]).order;
   const tot = ids.length, dn = ids.filter(id => done[id]).length;
   if (sess.anyOne) return { dn: Math.min(dn, 1), tot: 1, pct: dn > 0 ? 100 : 0 };
   return { dn, tot, pct: tot ? Math.round((dn / tot) * 100) : 0 };
@@ -179,24 +215,24 @@ function AddExForm({ sessionId, c1, c2, onAdd, onCancel }) {
 }
 
 // ── EXERCISE CARD ─────────────────────────────────────────────────────────
-function ExCard({ ex, done, c1, c2, onToggle, custom, onSaveCustom, onDelete }) {
-  const eff = { ...ex, ...(custom[ex.id] || {}) };
+function ExCard({ ex, done, c1, c2, onToggle, isEdited, onSaveOverride, onDelete, onMove, isFirst, isLast }) {
   const [editing, setEditing] = useState(false);
   const [delCfm,  setDelCfm ] = useState(false);
-  const [fSets,   setFSets  ] = useState(String(eff.sets || ""));
-  const [fReps,   setFReps  ] = useState(eff.reps || "");
-  const [fTarget, setFTarget] = useState(eff.target || "");
+  const [fSets,   setFSets  ] = useState(String(ex.sets || ""));
+  const [fReps,   setFReps  ] = useState(ex.reps || "");
+  const [fTarget, setFTarget] = useState(ex.target || "");
 
   useEffect(() => {
-    if (!editing) { setFSets(String(eff.sets||"")); setFReps(eff.reps||""); setFTarget(eff.target||""); }
-  }, [custom, editing]);
+    if (!editing) { setFSets(String(ex.sets||"")); setFReps(ex.reps||""); setFTarget(ex.target||""); }
+  }, [ex.reps, ex.sets, ex.target, editing]);
 
   const save = () => {
     const f = { target: fTarget };
-    if (eff.type !== "cardio") { f.sets = parseInt(fSets) || eff.sets; f.reps = fReps; }
-    onSaveCustom(ex.id, f); setEditing(false);
+    if (ex.type !== "cardio") { f.sets = parseInt(fSets) || ex.sets; f.reps = fReps; }
+    onSaveOverride(ex.id, f); setEditing(false);
   };
   const tclr = T_CLR[ex.type] || T_CLR.strength;
+  const moveStyle = disabled => ({ background:"none", border:"none", cursor:disabled?"default":"pointer", color:disabled?C3:MU, padding:3, display:"flex" });
 
   return (
     <div style={{ background:done?"rgba(0,208,132,0.05)":C1, borderRadius:10, marginBottom:8, overflow:"hidden", transition:"background .2s" }}>
@@ -214,24 +250,28 @@ function ExCard({ ex, done, c1, c2, onToggle, custom, onSaveCustom, onDelete }) 
         <div style={{ flex:1, padding:"12px 12px 12px 14px" }}>
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
             <div style={{ flex:1, paddingRight:8 }}>
-              <div style={{ fontSize:13, fontWeight:600, color:done?TX2:TX, textDecoration:done?"line-through":"none", lineHeight:1.3, transition:"color .2s" }}>{eff.name || ex.name}</div>
+              <div style={{ fontSize:13, fontWeight:600, color:done?TX2:TX, textDecoration:done?"line-through":"none", lineHeight:1.3, transition:"color .2s" }}>{ex.name}</div>
               {!editing && <>
                 <div style={{ display:"flex", gap:5, marginTop:6, flexWrap:"wrap", alignItems:"center" }}>
                   <span style={{ fontSize:9, fontWeight:700, color:tclr, letterSpacing:0.5 }}>{T_LBL[ex.type] || "Fuerza"}</span>
-                  {eff.sets && <><span style={{ color:MU, fontSize:9 }}>·</span><span style={{ fontSize:10, color:TX2 }}>{eff.sets}×</span></>}
-                  {eff.reps && <><span style={{ color:MU, fontSize:9 }}>·</span><span style={{ fontSize:10, color:TX2 }}>{eff.reps}</span></>}
+                  {ex.sets && <><span style={{ color:MU, fontSize:9 }}>·</span><span style={{ fontSize:10, color:TX2 }}>{ex.sets}×</span></>}
+                  {ex.reps && <><span style={{ color:MU, fontSize:9 }}>·</span><span style={{ fontSize:10, color:TX2 }}>{ex.reps}</span></>}
                   {ex.note && <span style={{ fontSize:8, color:c1, border:`1px solid ${c1}`, borderRadius:10, padding:"1px 6px" }}>{ex.note}</span>}
-                  {custom[ex.id] && <span style={{ fontSize:8, color:c1, opacity:.7 }}>editado</span>}
+                  {isEdited && <span style={{ fontSize:8, color:c1, opacity:.7 }}>editado</span>}
                 </div>
-                <div style={{ fontSize:10, color:TX2, marginTop:6 }}>→ {eff.target}</div>
-                {eff.sets && <div style={{ display:"flex", gap:3, marginTop:8 }}>
-                  {Array.from({ length:Math.min(eff.sets, 8) }).map((_,i) => (
+                <div style={{ fontSize:10, color:TX2, marginTop:6 }}>→ {ex.target}</div>
+                {ex.sets && <div style={{ display:"flex", gap:3, marginTop:8 }}>
+                  {Array.from({ length:Math.min(ex.sets, 8) }).map((_,i) => (
                     <div key={i} style={{ width:7, height:7, borderRadius:"50%", background:done?GN:tclr, opacity:done?.7:.35, transition:`all .3s ${i*0.04}s` }}/>
                   ))}
                 </div>}
               </>}
             </div>
             <div style={{ display:"flex", gap:6, alignItems:"center", flexShrink:0 }}>
+              {!editing && <>
+                <button aria-label="Subir ejercicio" title="Subir ejercicio" disabled={isFirst} onClick={()=>onMove(-1)} style={moveStyle(isFirst)}><ChevronUp size={14}/></button>
+                <button aria-label="Bajar ejercicio" title="Bajar ejercicio" disabled={isLast} onClick={()=>onMove(1)} style={moveStyle(isLast)}><ChevronDown size={14}/></button>
+              </>}
               {!editing && <button onClick={() => { setDelCfm(!delCfm); }} style={{ background:"none", border:"none", cursor:"pointer", color:delCfm?"#FCA5A5":MU, padding:4, display:"flex" }}><Trash2 size={13}/></button>}
               <button onClick={() => { setEditing(!editing); setDelCfm(false); }} style={{ background:"none", border:"none", cursor:"pointer", color:editing?c1:MU, padding:4, display:"flex" }}>
                 {editing ? <X size={15}/> : <Pencil size={13}/>}
@@ -261,7 +301,7 @@ function ExCard({ ex, done, c1, c2, onToggle, custom, onSaveCustom, onDelete }) 
               </div>
               <div style={{ display:"flex", gap:8 }}>
                 <button onClick={save} style={{ flex:2, background:`linear-gradient(135deg,${c1},${c2})`, border:"none", borderRadius:7, color:TX, fontFamily:FD, fontWeight:700, fontSize:12, padding:9, cursor:"pointer" }}>Guardar</button>
-                {custom[ex.id] && <button onClick={() => { onSaveCustom(ex.id, null); setEditing(false); }} style={{ flex:1, background:C2, border:`1px solid ${BR}`, borderRadius:7, color:TX2, fontFamily:FD, fontSize:11, padding:9, cursor:"pointer" }}>Reset</button>}
+                {isEdited && <button onClick={() => { onSaveOverride(ex.id, null); setEditing(false); }} style={{ flex:1, background:C2, border:`1px solid ${BR}`, borderRadius:7, color:TX2, fontFamily:FD, fontSize:11, padding:9, cursor:"pointer" }}>Reset</button>}
               </div>
             </div>
           )}
@@ -272,12 +312,12 @@ function ExCard({ ex, done, c1, c2, onToggle, custom, onSaveCustom, onDelete }) 
 }
 
 // ── SESSION VIEW ──────────────────────────────────────────────────────────
-function SessionView({ session, done, custom, onSaveCustom, onToggle, addedEx, deletedEx, onAddEx, onDeleteEx }) {
+function SessionView({ session, done, sessionExercises, onSaveOverride, onToggle, onAddEx, onDeleteEx, onMoveEx }) {
   const [showAdd, setShowAdd] = useState(false);
-  const { dn, tot, pct } = sessProgress(session, done, addedEx, deletedEx);
-  const totalSets = [...session.exercises, ...(addedEx[session.id]||[])].filter(e=>!deletedEx.includes(e.id)).reduce((a,e)=>a+(e.sets||0),0);
-  const visDefault = session.exercises.filter(e => !deletedEx.includes(e.id));
-  const visAdded   = (addedEx[session.id] || []).filter(e => !deletedEx.includes(e.id));
+  const { items } = resolveSession(session, sessionExercises[session.id]);
+  const { dn, tot, pct } = sessProgress(session, done, sessionExercises);
+  const totalSets = items.reduce((a,e)=>a+(e.sets||0),0);
+  const overrides = sessionExercises[session.id]?.overrides || {};
   return (
     <div>
       <div style={{ background:`linear-gradient(135deg,${session.c1},${session.c2})`, padding:"28px 20px 24px", position:"relative", overflow:"hidden" }}>
@@ -306,8 +346,7 @@ function SessionView({ session, done, custom, onSaveCustom, onToggle, addedEx, d
       <div style={{ padding:"12px 14px" }}>
         {session.sessionNote && <div style={{ fontSize:10, color:TX2, background:C2, borderRadius:8, padding:"8px 12px", marginBottom:10, borderLeft:`3px solid ${session.c1}` }}>{session.sessionNote}</div>}
         {session.anyOne && <div style={{ fontSize:10, color:MU, background:C1, borderRadius:8, padding:"8px 12px", marginBottom:10 }}>Elige <strong style={{ color:TX2 }}>cualquiera</strong> de las opciones</div>}
-        {visDefault.map(ex => <ExCard key={ex.id} ex={ex} done={!!done[ex.id]} c1={session.c1} c2={session.c2} onToggle={()=>onToggle(ex.id)} custom={custom} onSaveCustom={onSaveCustom} onDelete={()=>onDeleteEx(ex.id)}/>)}
-        {visAdded.map(ex   => <ExCard key={ex.id} ex={ex} done={!!done[ex.id]} c1={session.c1} c2={session.c2} onToggle={()=>onToggle(ex.id)} custom={custom} onSaveCustom={onSaveCustom} onDelete={()=>onDeleteEx(ex.id)}/>)}
+        {items.map((ex, index) => <ExCard key={ex.id} ex={ex} done={!!done[ex.id]} c1={session.c1} c2={session.c2} onToggle={()=>onToggle(ex.id)} isEdited={!!overrides[ex.id]} onSaveOverride={(id,fields)=>onSaveOverride(session.id,id,fields)} onDelete={()=>onDeleteEx(session.id,ex.id)} onMove={dir=>onMoveEx(session.id,ex.id,dir)} isFirst={index===0} isLast={index===items.length-1}/>)}
         {showAdd
           ? <AddExForm sessionId={session.id} c1={session.c1} c2={session.c2} onAdd={(sid,ex)=>{ onAddEx(sid,ex); setShowAdd(false); }} onCancel={()=>setShowAdd(false)}/>
           : <button onClick={()=>setShowAdd(true)} style={{ width:"100%", background:"transparent", border:`1.5px dashed ${BR}`, borderRadius:10, color:MU, fontFamily:FD, fontSize:12, fontWeight:600, padding:12, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
@@ -320,7 +359,7 @@ function SessionView({ session, done, custom, onSaveCustom, onToggle, addedEx, d
 }
 
 // ── HOY ───────────────────────────────────────────────────────────────────
-function HoyView({ today, sessions, done, onToggle, custom, onSaveCustom, addedEx, deletedEx, onAddEx, onDeleteEx }) {
+function HoyView({ today, sessions, done, onToggle, sessionExercises, onSaveOverride, onAddEx, onDeleteEx, onMoveEx }) {
   const session = sessions.find(s => s.day === today);
   if (!session) {
     const next = (() => { for(let i=1;i<=7;i++){const d=(today+i)%7;const s=sessions.find(x=>x.day===d);if(s)return{s,n:DAY_F[d]};} return null; })();
@@ -338,7 +377,7 @@ function HoyView({ today, sessions, done, onToggle, custom, onSaveCustom, addedE
               <div style={{ fontFamily:FBB, fontSize:24, letterSpacing:2 }}>{next.s.label}</div>
               <div style={{ fontSize:11, color:TX2, marginTop:3 }}>{next.n} · {next.s.sub}</div>
             </div>
-            <div style={{ fontSize:11, color:TX2 }}>{next.s.exercises.length} ej.</div>
+            <div style={{ fontSize:11, color:TX2 }}>{resolveSession(next.s, sessionExercises[next.s.id]).items.length} ej.</div>
           </div>
         </div>}
         <div style={{ background:C1, borderRadius:12, padding:"14px 16px" }}>
@@ -355,13 +394,13 @@ function HoyView({ today, sessions, done, onToggle, custom, onSaveCustom, addedE
   return (
     <div>
       <div style={{ fontSize:10, color:MU, padding:"10px 18px 0" }}>{DAY_F[today]}</div>
-      <SessionView session={session} done={done} custom={custom} onSaveCustom={onSaveCustom} onToggle={onToggle} addedEx={addedEx} deletedEx={deletedEx} onAddEx={onAddEx} onDeleteEx={onDeleteEx}/>
+      <SessionView session={session} done={done} sessionExercises={sessionExercises} onSaveOverride={onSaveOverride} onToggle={onToggle} onAddEx={onAddEx} onDeleteEx={onDeleteEx} onMoveEx={onMoveEx}/>
     </div>
   );
 }
 
 // ── SEMANA ────────────────────────────────────────────────────────────────
-function SemanaView({ sessions, done, onToggle, custom, onSaveCustom, addedEx, deletedEx, onAddEx, onDeleteEx, semId, setSemId }) {
+function SemanaView({ sessions, done, onToggle, sessionExercises, onSaveOverride, onAddEx, onDeleteEx, onMoveEx, semId, setSemId }) {
   const idx = semId ? sessions.findIndex(s => s.id === semId) : -1;
   const session = idx >= 0 ? sessions[idx] : null;
   if (session) {
@@ -376,7 +415,7 @@ function SemanaView({ sessions, done, onToggle, custom, onSaveCustom, addedEx, d
             {next.label}<ChevronRight size={14}/>
           </button>}
         </div>
-        <SessionView session={session} done={done} custom={custom} onSaveCustom={onSaveCustom} onToggle={onToggle} addedEx={addedEx} deletedEx={deletedEx} onAddEx={onAddEx} onDeleteEx={onDeleteEx}/>
+        <SessionView session={session} done={done} sessionExercises={sessionExercises} onSaveOverride={onSaveOverride} onToggle={onToggle} onAddEx={onAddEx} onDeleteEx={onDeleteEx} onMoveEx={onMoveEx}/>
       </div>
     );
   }
@@ -384,7 +423,8 @@ function SemanaView({ sessions, done, onToggle, custom, onSaveCustom, addedEx, d
     <div style={{ padding:14 }}>
       <div style={{ fontSize:10, color:MU, letterSpacing:1, marginBottom:12 }}>SEMANA COMPLETA</div>
       {sessions.map(s => {
-        const { dn, tot, pct } = sessProgress(s, done, addedEx, deletedEx);
+        const { pct } = sessProgress(s, done, sessionExercises);
+        const { items } = resolveSession(s, sessionExercises[s.id]);
         return (
           <div key={s.id} onClick={()=>setSemId(s.id)} style={{ background:C1, borderRadius:12, marginBottom:8, overflow:"hidden", cursor:"pointer", display:"flex" }}>
             <div style={{ width:5, background:`linear-gradient(180deg,${s.c1},${s.c2})`, flexShrink:0 }}/>
@@ -396,7 +436,7 @@ function SemanaView({ sessions, done, onToggle, custom, onSaveCustom, addedEx, d
                 </div>
                 <div style={{ fontSize:10, color:TX2 }}>{DAY_S[s.day]} · {s.sub}</div>
                 <div style={{ display:"flex", gap:3, marginTop:8 }}>
-                  {s.exercises.filter(e=>!deletedEx.includes(e.id)).map(e => (
+                  {items.map(e => (
                     <div key={e.id} style={{ width:6, height:6, borderRadius:"50%", background:done[e.id]?GN:T_CLR[e.type]||T_CLR.strength, opacity:done[e.id]?1:.3, transition:"all .2s" }}/>
                   ))}
                 </div>
@@ -527,9 +567,7 @@ export default function GymTracker() {
   const [tab,       setTab      ] = useState("hoy");
   const [routine,   setRoutine  ] = useState("principal");
   const [done,      setDone     ] = useState({});
-  const [custom,    setCustom   ] = useState({});
-  const [addedEx,   setAddedEx  ] = useState({});
-  const [deletedEx, setDeletedEx] = useState([]);
+  const [sessionExercises, setSessionExercises] = useState({});
   const [runs,      setRuns     ] = useState([]);
   const [loaded,    setLoaded   ] = useState(false);
   const [semId,     setSemId    ] = useState(null);
@@ -543,22 +581,24 @@ export default function GymTracker() {
     (async () => {
       try {
         const w = isoWeek();
-        const [sw,sd,sc,sa,sdel,sr,srt] = await Promise.all([
-          store.get("week"), store.get("done"), store.get("custom"),
-          store.get("addedEx"), store.get("deletedEx"), store.get("runs"), store.get("routine"),
+        const [sw,sd,sse,sr,srt,sc,sa,sdel] = await Promise.all([
+          store.get("week"), store.get("done"), store.get("sessionExercises"),
+          store.get("runs"), store.get("routine"), store.get("custom"),
+          store.get("addedEx"), store.get("deletedEx"),
         ]);
         if (sw !== w) { const f=blank(); setDone(f); await store.set("week",w); await store.set("done",f); }
         else setDone(sd || blank());
-        setCustom(sc||{}); setAddedEx(sa||{}); setDeletedEx(sdel||[]); setRuns(sr||[]);
+        const nextSessionExercises = sse ?? migrateLegacy(sc||{}, sa||{}, sdel||[], ALL_FLAT);
+        setSessionExercises(nextSessionExercises);
+        if (sse === null) await store.set("sessionExercises", nextSessionExercises);
+        setRuns(sr||[]);
         if (srt) setRoutine(srt);
         setLoaded(true);
       } catch (err) {
         console.error("Error al cargar datos de almacenamiento local:", err);
         // Fallback: usar datos vacíos para que la app cargue de todas formas
         setDone(blank());
-        setCustom({});
-        setAddedEx({});
-        setDeletedEx([]);
+        setSessionExercises({});
         setRuns([]);
         setLoaded(true);
       }
@@ -566,12 +606,51 @@ export default function GymTracker() {
   }, []);
 
   const toggle     = async id => { const n={...done,[id]:!done[id]}; setDone(n); await store.set("done",n); };
-  const saveCustom = async (id, fields) => {
-    let n; if (fields===null){const c={...custom};delete c[id];n=c;} else n={...custom,[id]:{...(custom[id]||{}),...fields}};
-    setCustom(n); await store.set("custom",n);
+  const sessionEntry = sid => {
+    const session = ALL_FLAT.find(s => s.id === sid);
+    const current = sessionExercises[sid] || {};
+    return {
+      order: session ? resolveSession(session, current).order : [...(current.order || [])],
+      overrides: { ...(current.overrides || {}) },
+      added: { ...(current.added || {}) },
+      deleted: [...(current.deleted || [])],
+    };
   };
-  const addEx    = async (sid, ex) => { const n={...addedEx,[sid]:[...(addedEx[sid]||[]),ex]}; setAddedEx(n); await store.set("addedEx",n); const nd={...done,[ex.id]:false}; setDone(nd); await store.set("done",nd); };
-  const deleteEx = async id => { const n=[...deletedEx,id]; setDeletedEx(n); await store.set("deletedEx",n); };
+  const saveSessionExercises = async n => { setSessionExercises(n); await store.set("sessionExercises",n); };
+  const saveOverride = async (sid, id, fields) => {
+    const entry = sessionEntry(sid);
+    if (fields === null) delete entry.overrides[id];
+    else entry.overrides[id] = { ...(entry.overrides[id] || {}), ...fields };
+    await saveSessionExercises({ ...sessionExercises, [sid]:entry });
+  };
+  const addEx = async (sid, ex) => {
+    const entry = sessionEntry(sid);
+    entry.added[ex.id] = ex;
+    if (!entry.order.includes(ex.id)) entry.order.push(ex.id);
+    entry.deleted = entry.deleted.filter(id => id !== ex.id);
+    await saveSessionExercises({ ...sessionExercises, [sid]:entry });
+    const nd={...done,[ex.id]:false}; setDone(nd); await store.set("done",nd);
+  };
+  const deleteEx = async (sid, id) => {
+    const session = ALL_FLAT.find(s => s.id === sid);
+    const entry = sessionEntry(sid);
+    entry.order = entry.order.filter(exId => exId !== id);
+    if (session?.exercises.some(ex => ex.id === id)) {
+      if (!entry.deleted.includes(id)) entry.deleted.push(id);
+    } else {
+      delete entry.added[id];
+      delete entry.overrides[id];
+    }
+    await saveSessionExercises({ ...sessionExercises, [sid]:entry });
+  };
+  const moveEx = async (sid, id, dir) => {
+    const entry = sessionEntry(sid);
+    const from = entry.order.indexOf(id);
+    const to = Math.max(0, Math.min(entry.order.length - 1, from + dir));
+    if (from < 0 || from === to) return;
+    [entry.order[from], entry.order[to]] = [entry.order[to], entry.order[from]];
+    await saveSessionExercises({ ...sessionExercises, [sid]:entry });
+  };
   const calcPace = () => { const k=parseFloat(rkm),m=parseInt(rmin)||0,s=parseInt(rsec)||0; if(!k||k<=0||m+s===0)return; const tot=m*60+s,ps=tot/k,pm=Math.floor(ps/60),pr=Math.round(ps%60); setPace({km:k,min:m,sec:s,pace:`${pm}:${String(pr).padStart(2,"0")}`,kmh:(k/(tot/3600)).toFixed(1)}); };
   const saveRun  = async () => { if(!pace)return; const n=[...runs,{...pace,type:rtype,date:new Date().toLocaleDateString("es-CL"),ts:Date.now()}]; setRuns(n); await store.set("runs",n); setPace(null); setRkm(""); setRmin(""); setRsec(""); };
   const deleteRun = async i => { const n=runs.filter((_,j)=>j!==i); setRuns(n); await store.set("runs",n); };
@@ -580,16 +659,13 @@ export default function GymTracker() {
 
   const activeSessions = routine === "principal" ? MAIN : MANT;
   const todayN = new Date().getDay();
-  const activeIds = activeSessions.flatMap(s => [
-    ...s.exercises.filter(e=>!deletedEx.includes(e.id)).map(e=>e.id),
-    ...(addedEx[s.id]||[]).filter(e=>!deletedEx.includes(e.id)).map(e=>e.id),
-  ]);
+  const activeIds = activeSessions.flatMap(s => resolveSession(s, sessionExercises[s.id]).order);
   const totalEx = activeIds.length, doneEx = activeIds.filter(id=>done[id]).length;
   const wPct = totalEx ? Math.round((doneEx/totalEx)*100) : 0;
 
   if (!loaded) return <div style={{background:BG,height:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:FBB,fontSize:18,letterSpacing:6,color:MU}}>CARGANDO</div>;
 
-  const sp = { done, onToggle:toggle, custom, onSaveCustom:saveCustom, addedEx, deletedEx, onAddEx:addEx, onDeleteEx:deleteEx };
+  const sp = { done, onToggle:toggle, sessionExercises, onSaveOverride:saveOverride, onAddEx:addEx, onDeleteEx:deleteEx, onMoveEx:moveEx };
 
   return (
     <div style={{ background:BG, fontFamily:FD, color:TX, minHeight:"100vh", maxWidth:480, margin:"0 auto", paddingBottom:70 }}>
