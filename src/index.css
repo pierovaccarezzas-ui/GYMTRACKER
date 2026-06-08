@@ -1,0 +1,10 @@
+/* Reset only – all styling is inline in GymTracker.jsx */
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+}
+body {
+  margin: 0;
+  padding: 0;
+  background: #000;
+}

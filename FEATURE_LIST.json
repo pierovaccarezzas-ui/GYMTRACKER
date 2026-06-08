@@ -1,0 +1,157 @@
+{
+  "project": "GymTrack PWA",
+  "last_updated": "2026-06-08",
+  "rules": {
+    "single_active_feature": true,
+    "passing_requires_evidence": true,
+    "do_not_skip_verification": true,
+    "planner_must_approve_before_execution": true
+  },
+  "status_legend": {
+    "not_started": "Work has not begun.",
+    "planned": "A plan exists in docs/plans/ but has not been approved yet.",
+    "approved": "Plan approved by user. Ready for execution.",
+    "in_progress": "The feature is the current active task being executed.",
+    "in_review": "Executor finished. Awaiting Reviewer verification.",
+    "blocked": "Work cannot continue until a documented blocker is resolved.",
+    "passing": "Reviewer verified. Required verification passed and evidence recorded."
+  },
+  "agent_roles": {
+    "planner": "Opus 4.8 — Creates plans only, never writes code.",
+    "executor_code": "Codex — Executes logic, build, state, and storage changes.",
+    "executor_ui": "V0 — Executes UI/UX design and visual component changes.",
+    "reviewer": "Antigravity — Runs verification, gates feature completion."
+  },
+  "features": [
+    {
+      "id": "core-001",
+      "priority": 0,
+      "area": "core",
+      "title": "Base workout tracker UI",
+      "user_visible_behavior": "User sees a dark-themed gym tracker with weekly schedule, exercise list, set tracking with checkmarks, and week navigation.",
+      "status": "passing",
+      "executor": "codex",
+      "verification": "npm run build && open dist/index.html",
+      "evidence": "Build succeeds. App renders with workout data. Sets can be checked/unchecked.",
+      "plan_id": null,
+      "notes": "Created during initial setup (Session 001)."
+    },
+    {
+      "id": "core-002",
+      "priority": 0,
+      "area": "core",
+      "title": "Dual-layer persistent storage",
+      "user_visible_behavior": "User's checked sets persist across page reloads. Works in both Apps Script and local browser.",
+      "status": "passing",
+      "executor": "codex",
+      "verification": "Check sets, reload page, verify sets remain checked.",
+      "evidence": "localStorage fallback works locally. Apps Script PropertiesService works in deployment.",
+      "plan_id": null,
+      "notes": "Uses window.storage (Apps Script) with localStorage fallback."
+    },
+    {
+      "id": "core-003",
+      "priority": 0,
+      "area": "core",
+      "title": "Google Apps Script deployment",
+      "user_visible_behavior": "App is accessible via a Google Apps Script web app URL.",
+      "status": "passing",
+      "executor": "codex",
+      "verification": "Copy dist/index.html into Code.gs doGet() HtmlService. Deploy and access URL.",
+      "evidence": "Deployed and functional after fixing IIFE build and script placement.",
+      "plan_id": null,
+      "notes": "Single-file IIFE build via vite-plugin-singlefile."
+    },
+    {
+      "id": "pwa-001",
+      "priority": 1,
+      "area": "pwa",
+      "title": "PWA manifest & service worker",
+      "user_visible_behavior": "App can be installed on mobile home screen. Shows app icon and splash screen. Works offline with cached assets.",
+      "status": "in_progress",
+      "executor": "codex",
+      "verification": "Lighthouse PWA audit score >= 90. Install prompt appears on mobile Chrome.",
+      "evidence": null,
+      "plan_id": "PLAN-001",
+      "notes": "Requires manifest.json, service worker registration, and app icons. Planned via PLAN-001 (Vite PWA build on Vercel)."
+    },
+    {
+      "id": "pwa-002",
+      "priority": 2,
+      "area": "pwa",
+      "title": "Offline support",
+      "user_visible_behavior": "App functions without internet connection. Cached workout data is accessible offline.",
+      "status": "in_progress",
+      "executor": "codex",
+      "verification": "Disconnect network in DevTools. App still loads and shows workout data.",
+      "evidence": null,
+      "plan_id": "PLAN-001",
+      "notes": "Service worker cache strategy needed. Planned via PLAN-001 (Workbox precache + navigateFallback)."
+    },
+    {
+      "id": "ui-001",
+      "priority": 3,
+      "area": "ui",
+      "title": "Exercise editing — add/remove/reorder exercises",
+      "user_visible_behavior": "User can add custom exercises, remove existing ones, and reorder them within a day.",
+      "status": "not_started",
+      "executor": "v0",
+      "verification": "Add exercise, verify it appears. Remove exercise, verify it disappears. Reorder and verify new order persists.",
+      "evidence": null,
+      "plan_id": null,
+      "notes": "Currently exercises are hardcoded in MAIN/MANT arrays."
+    },
+    {
+      "id": "ui-002",
+      "priority": 4,
+      "area": "ui",
+      "title": "Workout history & statistics",
+      "user_visible_behavior": "User can view past weeks' completion rates, exercise streaks, and progress charts.",
+      "status": "not_started",
+      "executor": "v0",
+      "verification": "Navigate to history view. Verify charts show correct data from stored weeks.",
+      "evidence": null,
+      "plan_id": null,
+      "notes": "Depends on accumulated stored data across multiple weeks."
+    },
+    {
+      "id": "ui-003",
+      "priority": 5,
+      "area": "ui",
+      "title": "Rest timer with notification",
+      "user_visible_behavior": "User taps a rest timer button after completing a set. Timer counts down and vibrates/notifies when rest is over.",
+      "status": "not_started",
+      "executor": "v0",
+      "verification": "Start timer. Verify countdown displays. Verify vibration/notification fires at 0.",
+      "evidence": null,
+      "plan_id": null,
+      "notes": "Use Notification API + Vibration API."
+    },
+    {
+      "id": "ui-004",
+      "priority": 6,
+      "area": "ui",
+      "title": "Weight/rep logging per set",
+      "user_visible_behavior": "User can log specific weight and reps for each set, not just check/uncheck completion.",
+      "status": "not_started",
+      "executor": "v0",
+      "verification": "Tap a set, enter weight/reps. Reload. Verify values persist.",
+      "evidence": null,
+      "plan_id": null,
+      "notes": "Requires schema change in stored data format."
+    },
+    {
+      "id": "ux-001",
+      "priority": 7,
+      "area": "ux",
+      "title": "Onboarding flow",
+      "user_visible_behavior": "First-time users see a brief welcome screen explaining how to use the app before seeing the workout tracker.",
+      "status": "not_started",
+      "executor": "v0",
+      "verification": "Clear storage. Open app. Verify onboarding appears. Complete it. Verify tracker loads. Reload — onboarding should not reappear.",
+      "evidence": null,
+      "plan_id": null,
+      "notes": "Store onboarding_complete flag."
+    }
+  ]
+}
