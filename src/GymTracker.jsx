@@ -20,14 +20,17 @@ function isoWeek() {
 }
 
 // ── TOKENS ────────────────────────────────────────────────────────────────
-const BG  = "#F1E8D5"; const C1 = "#FFF9EC"; const C2 = "#E5D8BE"; const C3 = "#D4C4A5";
-const BR  = "#181713"; const TX = "#181713"; const TX2 = "#514C42"; const MU = "#776F60";
-const GN  = "#8ED081"; const PINK = "#F2A6B3"; const YELLOW = "#F2CD5D";
-const FBB = "'Bebas Neue','Impact','Arial Black',Arial,sans-serif";
-const FD  = "system-ui,-apple-system,'Segoe UI',sans-serif";
-const PANEL = { background:C1, border:`2px solid ${BR}`, borderRadius:3, boxShadow:`4px 4px 0 ${BR}` };
-const INPUT = { fontFamily:FD, fontSize:14, fontWeight:600, background:C1, border:`2px solid ${BR}`, borderRadius:2, padding:"12px 11px", color:TX, width:"100%", minHeight:48 };
-const ACTION = { minHeight:48, border:`2px solid ${BR}`, borderRadius:2, boxShadow:`3px 3px 0 ${BR}`, color:TX, fontFamily:FD, fontWeight:800, fontSize:12, letterSpacing:.4, cursor:"pointer" };
+const BG  = "#E9DFC8"; const C1 = "#F7F1E4"; const C2 = "#E1D5BD"; const C3 = "#C9BDA5";
+const BR  = "#17150F"; const TX = "#17150F"; const TX2 = "#5B554A"; const MU = "#847B6A";
+const GN  = "#6D9D73"; const PINK = "#E5482F"; const YELLOW = "#E5482F";
+const FBB = "'Inter','Arial Black',Arial,sans-serif";
+const FD  = "'Inter',system-ui,-apple-system,'Segoe UI',sans-serif";
+const FM  = "'IBM Plex Mono','SFMono-Regular',Consolas,monospace";
+const HAIR = "rgba(23,21,15,.18)";
+const PANEL = { background:C1, border:`1px solid ${HAIR}`, borderRadius:0, boxShadow:"none" };
+const INPUT = { fontFamily:FM, fontSize:12, fontWeight:500, background:C1, border:`1px solid ${BR}`, borderRadius:0, padding:"13px 12px", color:TX, width:"100%", minHeight:48 };
+const ACTION = { minHeight:48, border:`1px solid ${BR}`, borderRadius:0, boxShadow:"none", color:TX, fontFamily:FM, fontWeight:500, fontSize:10, letterSpacing:1, textTransform:"uppercase", cursor:"pointer" };
+const MONO = { fontFamily:FM, fontSize:10, fontWeight:500, letterSpacing:1.25, textTransform:"uppercase" };
 
 // ── RUTINA PRINCIPAL ──────────────────────────────────────────────────────
 const MAIN = [
@@ -92,7 +95,7 @@ const MANT = [
 const ALL_FLAT = [...MAIN, ...MANT];
 const DAY_S  = ["DOM","LUN","MAR","MIÉ","JUE","VIE","SÁB"];
 const DAY_F  = ["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
-const T_CLR  = { strength:"#EF8354", cardio:"#79B7D9", plyo:"#B99AD9", warmup:"#F2CD5D" };
+const T_CLR  = { strength:"#E5482F", cardio:"#477E93", plyo:"#75628B", warmup:"#A06E2F" };
 const T_LBL  = { strength:"Fuerza", cardio:"Cardio", plyo:"Plyo", warmup:"Calentamiento" };
 const RUN_TYPES = [
   { id:"hiit", label:"HIIT", color:"#FF0080" },
@@ -183,7 +186,7 @@ function Ring({ pct, c1, size = 52, thick = 4 }) {
 }
 
 // ── ADD EXERCISE FORM ─────────────────────────────────────────────────────
-function AddExForm({ sessionId, c1, onAdd, onCancel }) {
+function AddExForm({ sessionId, onAdd, onCancel }) {
   const [name, setName] = useState("");
   const [type, setType] = useState("strength");
   const [sets, setSets] = useState("3");
@@ -195,14 +198,15 @@ function AddExForm({ sessionId, c1, onAdd, onCancel }) {
     onAdd(sessionId, { id:`cx-${Date.now()}`, name:name.trim(), type, sets:type==="cardio"?undefined:parseInt(sets)||3, reps:type==="cardio"?undefined:reps, target:tgt });
   };
   return (
-    <div style={{ ...PANEL, background:C2, padding:14, marginBottom:12 }}>
-      <div style={{ fontFamily:FBB, fontSize:20, letterSpacing:2, marginBottom:10 }}>NUEVO EJERCICIO</div>
-      <div style={{ fontSize:9, color:TX2, marginBottom:4 }}>Nombre</div>
+    <div style={{ ...PANEL, background:C1, padding:18, marginBottom:16, borderTop:`3px solid ${PINK}` }}>
+      <div style={{ ...MONO, color:PINK, marginBottom:8 }}>FORM / NUEVO</div>
+      <div style={{ fontFamily:FBB, fontSize:26, fontWeight:800, letterSpacing:-1, marginBottom:18 }}>Nuevo ejercicio</div>
+      <div style={{ ...MONO, color:TX2, marginBottom:6 }}>Nombre</div>
       <input type="text" value={name} onChange={e=>setName(e.target.value)} placeholder="Ej: Leg Extension" style={{ ...inp, marginBottom:10 }}/>
       <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:10 }}>
         {["strength","cardio","plyo","warmup"].map(t => (
           <button key={t} onClick={() => setType(t)}
-            style={{ ...ACTION, flex:1, minWidth:80, background:type===t?T_CLR[t]:C1, boxShadow:type===t?`3px 3px 0 ${BR}`:"none", fontSize:9 }}>
+            style={{ ...ACTION, flex:1, minWidth:80, background:type===t?BR:C1, color:type===t?C1:TX, borderColor:type===t?BR:HAIR }}>
             {T_LBL[t]}
           </button>
         ))}
@@ -210,19 +214,19 @@ function AddExForm({ sessionId, c1, onAdd, onCancel }) {
       {type !== "cardio" && (
         <div style={{ display:"flex", gap:8, marginBottom:10 }}>
           <div style={{ flex:1 }}>
-            <div style={{ fontSize:9, color:TX2, marginBottom:4 }}>Series</div>
+            <div style={{ ...MONO, color:TX2, marginBottom:6 }}>Series</div>
             <input type="number" value={sets} onChange={e=>setSets(e.target.value)} style={inp}/>
           </div>
           <div style={{ flex:2 }}>
-            <div style={{ fontSize:9, color:TX2, marginBottom:4 }}>Reps</div>
+            <div style={{ ...MONO, color:TX2, marginBottom:6 }}>Reps</div>
             <input type="text" value={reps} onChange={e=>setReps(e.target.value)} style={inp}/>
           </div>
         </div>
       )}
-      <div style={{ fontSize:9, color:TX2, marginBottom:4 }}>Objetivo / Peso</div>
+      <div style={{ ...MONO, color:TX2, marginBottom:6 }}>Objetivo / Peso</div>
       <input type="text" value={tgt} onChange={e=>setTgt(e.target.value)} placeholder="Ej: 20 kg" style={{ ...inp, marginBottom:12 }}/>
       <div style={{ display:"flex", gap:8 }}>
-        <button onClick={save} style={{ ...ACTION, flex:2, background:c1 }}>Agregar</button>
+        <button onClick={save} style={{ ...ACTION, flex:2, background:PINK, color:C1, borderColor:PINK }}>Agregar</button>
         <button onClick={onCancel} style={{ ...ACTION, flex:1, background:C1, boxShadow:"none" }}>Cancelar</button>
       </div>
     </div>
@@ -230,7 +234,7 @@ function AddExForm({ sessionId, c1, onAdd, onCancel }) {
 }
 
 // ── EXERCISE CARD ─────────────────────────────────────────────────────────
-function ExCard({ ex, progress, done, c1, onToggleSimple, onToggleSet, isEdited, onSaveOverride, onDelete, onMove, isFirst, isLast }) {
+function ExCard({ ex, index, progress, done, c1, onToggleSimple, onToggleSet, isEdited, onSaveOverride, onDelete, onMove, isFirst, isLast }) {
   const [editing, setEditing] = useState(false);
   const [delCfm,  setDelCfm ] = useState(false);
   const [showSets, setShowSets] = useState(false);
@@ -253,44 +257,44 @@ function ExCard({ ex, progress, done, c1, onToggleSimple, onToggleSet, isEdited,
   };
   const tclr = T_CLR[ex.type] || T_CLR.strength;
   const hasSets = ex.type !== "cardio" && !!ex.sets;
-  const moveStyle = disabled => ({ width:42, height:42, background:disabled?C2:C1, border:`2px solid ${disabled?C3:BR}`, borderRadius:2, cursor:disabled?"default":"pointer", color:disabled?MU:TX, display:"flex", alignItems:"center", justifyContent:"center" });
+  const moveStyle = disabled => ({ width:42, height:42, background:"transparent", border:`1px solid ${disabled?HAIR:BR}`, borderRadius:0, cursor:disabled?"default":"pointer", color:disabled?MU:TX, display:"flex", alignItems:"center", justifyContent:"center" });
 
   return (
     <>
-    <div style={{ ...PANEL, background:done?"#DDEBCF":C1, marginBottom:12, overflow:"hidden", transition:"background .2s" }}>
+    <div style={{ ...PANEL, background:done?"#E0E8D9":C1, marginBottom:0, overflow:"hidden", borderLeft:"none", borderRight:"none", borderBottom:`1px solid ${HAIR}`, transition:"background .2s" }}>
       {delCfm && (
         <div style={{ background:"rgba(220,38,38,0.12)", padding:"9px 14px", display:"flex", justifyContent:"space-between", alignItems:"center", borderBottom:`1px solid rgba(220,38,38,0.25)` }}>
           <span style={{ fontSize:11, color:"#FCA5A5" }}>¿Borrar este ejercicio?</span>
           <div style={{ display:"flex", gap:8 }}>
-            <button onClick={onDelete} style={{ background:"#DC2626", border:"none", borderRadius:5, color:TX, fontSize:10, fontWeight:700, padding:"4px 12px", cursor:"pointer" }}>Sí</button>
-            <button onClick={() => setDelCfm(false)} style={{ background:C3, border:`1px solid ${BR}`, borderRadius:5, color:TX2, fontSize:10, padding:"4px 12px", cursor:"pointer" }}>No</button>
+            <button onClick={onDelete} style={{ ...ACTION, background:PINK, color:C1, borderColor:PINK, padding:"4px 12px" }}>Sí</button>
+            <button onClick={() => setDelCfm(false)} style={{ ...ACTION, background:C1, padding:"4px 12px" }}>No</button>
           </div>
         </div>
       )}
       <div style={{ display:"flex" }}>
-        <div style={{ width:9, background:done?GN:tclr, borderRight:`2px solid ${BR}`, flexShrink:0, transition:"background .2s" }}/>
-        <div style={{ flex:1, padding:"12px 12px 12px 14px" }}>
+        <div style={{ width:48, padding:"17px 10px", fontFamily:FM, fontSize:11, color:done?GN:PINK, borderRight:`1px solid ${HAIR}`, flexShrink:0 }}>{String(index + 1).padStart(2,"0")}</div>
+        <div style={{ flex:1, padding:"16px 14px" }}>
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
             <div onClick={()=>hasSets && !editing && setShowSets(true)} style={{ flex:1, paddingRight:8, cursor:hasSets?"pointer":"default" }}>
-              <div style={{ fontSize:15, fontWeight:900, color:TX, lineHeight:1.3 }}>{ex.name}</div>
+              <div style={{ fontSize:18, fontWeight:750, letterSpacing:-.5, color:TX, lineHeight:1.16 }}>{ex.name}</div>
               {!editing && <>
                 <div style={{ display:"flex", gap:5, marginTop:6, flexWrap:"wrap", alignItems:"center" }}>
-                  <span style={{ fontSize:9, fontWeight:700, color:tclr, letterSpacing:0.5 }}>{T_LBL[ex.type] || "Fuerza"}</span>
-                  {ex.sets && <><span style={{ color:MU, fontSize:9 }}>·</span><span style={{ fontSize:10, fontWeight:800, color:TX2 }}>{progress}/{ex.sets} series</span></>}
-                  {ex.reps && <><span style={{ color:MU, fontSize:9 }}>·</span><span style={{ fontSize:10, color:TX2 }}>{ex.reps}</span></>}
-                  {ex.note && <span style={{ fontSize:8, color:c1, border:`1px solid ${c1}`, borderRadius:10, padding:"1px 6px" }}>{ex.note}</span>}
-                  {isEdited && <span style={{ fontSize:8, color:c1, opacity:.7 }}>editado</span>}
+                  <span style={{ ...MONO, fontSize:9, color:tclr }}>{T_LBL[ex.type] || "Fuerza"}</span>
+                  {ex.sets && <span style={{ ...MONO, fontSize:9, color:TX2 }}>SET {String(progress).padStart(2,"0")} / {String(ex.sets).padStart(2,"0")}</span>}
+                  {ex.reps && <span style={{ ...MONO, fontSize:9, color:TX2 }}>REP {ex.reps}</span>}
+                  {ex.note && <span style={{ ...MONO, fontSize:8, color:PINK }}>{ex.note}</span>}
+                  {isEdited && <span style={{ ...MONO, fontSize:8, color:PINK }}>Editado</span>}
                 </div>
-                <div style={{ fontSize:10, color:TX2, marginTop:6 }}>→ {ex.target}</div>
+                <div style={{ ...MONO, fontSize:9, color:TX2, marginTop:8 }}>→ {ex.target || "Sin objetivo"}</div>
                 {ex.sets && <div style={{ display:"flex", gap:3, marginTop:8 }}>
                   {Array.from({ length:Math.min(ex.sets, 8) }).map((_,i) => (
-                    <div key={i} style={{ width:18, height:7, background:i<progress?GN:C2, border:`1px solid ${BR}`, transition:`all .3s ${i*0.04}s` }}/>
+                    <div key={i} style={{ flex:1, maxWidth:36, height:3, background:i<progress?PINK:C3, transition:`all .3s ${i*0.04}s` }}/>
                   ))}
                 </div>}
               </>}
             </div>
             <div style={{ display:"flex", gap:6, alignItems:"center", flexShrink:0 }}>
-              <button onClick={()=>hasSets?setShowSets(true):onToggleSimple()} style={{ width:48, height:48, borderRadius:2, background:done?GN:C1, border:`2px solid ${BR}`, boxShadow:`3px 3px 0 ${BR}`, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:TX, transition:"all .2s" }}>
+              <button onClick={()=>hasSets?setShowSets(true):onToggleSimple()} style={{ width:48, height:48, borderRadius:0, background:done?BR:PINK, border:`1px solid ${done?BR:PINK}`, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:C1, transition:"all .2s" }}>
                 {done ? <Check size={19} strokeWidth={3}/> : <span style={{ fontFamily:FBB, fontSize:hasSets?18:24 }}>{hasSets?`${progress}/${ex.sets}`:"+"}</span>}
               </button>
             </div>
@@ -337,22 +341,22 @@ function ExCard({ ex, progress, done, c1, onToggleSimple, onToggleSet, isEdited,
       </div>
     </div>
     {showSets && hasSets && (
-      <div onClick={()=>setShowSets(false)} style={{ position:"fixed", inset:0, zIndex:300, background:"rgba(24,23,19,.72)", padding:18, display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
-        <div onClick={e=>e.stopPropagation()} style={{ ...PANEL, width:"100%", maxWidth:444, background:BG, padding:16, boxShadow:`7px 7px 0 ${BR}` }}>
-          <div style={{ display:"flex", justifyContent:"space-between", gap:12, borderBottom:`2px solid ${BR}`, paddingBottom:12, marginBottom:12 }}>
-            <div><div style={{ fontSize:10, fontWeight:900, letterSpacing:1.4 }}>{T_LBL[ex.type]}</div><div style={{ fontFamily:FBB, fontSize:30, letterSpacing:1.5, lineHeight:1, marginTop:4 }}>{ex.name}</div></div>
+      <div onClick={()=>setShowSets(false)} style={{ position:"fixed", inset:0, zIndex:300, background:"rgba(23,21,15,.72)", padding:18, display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
+        <div onClick={e=>e.stopPropagation()} style={{ ...PANEL, width:"100%", maxWidth:444, background:BG, padding:20, borderTop:`4px solid ${PINK}` }}>
+          <div style={{ display:"flex", justifyContent:"space-between", gap:12, borderBottom:`1px solid ${BR}`, paddingBottom:16, marginBottom:16 }}>
+            <div><div style={{ ...MONO, color:PINK }}>{T_LBL[ex.type]} / SET TRACKER</div><div style={{ fontFamily:FBB, fontSize:30, fontWeight:800, letterSpacing:-1.2, lineHeight:1.05, marginTop:8 }}>{ex.name}</div></div>
             <button aria-label="Cerrar series" onClick={()=>setShowSets(false)} style={{ ...ACTION, width:48, background:C1, boxShadow:"none" }}><X size={20}/></button>
           </div>
-          <div style={{ fontFamily:FBB, fontSize:22, letterSpacing:1, marginBottom:10 }}>{progress} / {ex.sets} SERIES LISTAS</div>
+          <div style={{ ...MONO, fontSize:11, marginBottom:12 }}>PROGRESO / {String(progress).padStart(2,"0")} DE {String(ex.sets).padStart(2,"0")}</div>
           <div style={{ display:"grid", gap:8 }}>
             {Array.from({ length:ex.sets }).map((_, index) => {
               const checked = index < progress;
-              return <button key={index} onClick={()=>onToggleSet(index)} style={{ ...ACTION, minHeight:58, display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 14px", background:checked?GN:C1, boxShadow:checked?`3px 3px 0 ${BR}`:"none" }}>
-                <span>SERIE {index + 1}</span><span style={{ display:"flex", alignItems:"center", gap:8 }}>{ex.reps && `${ex.reps} reps`}{checked && <Check size={20} strokeWidth={3}/>}</span>
+              return <button key={index} onClick={()=>onToggleSet(index)} style={{ ...ACTION, minHeight:58, display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 14px", background:checked?BR:C1, color:checked?C1:TX, borderColor:checked?BR:HAIR }}>
+                <span>SET {String(index + 1).padStart(2,"0")}</span><span style={{ display:"flex", alignItems:"center", gap:8 }}>{ex.reps && `${ex.reps} REP`}{checked && <Check size={18} strokeWidth={2}/>}</span>
               </button>;
             })}
           </div>
-          <button onClick={()=>setShowSets(false)} style={{ ...ACTION, width:"100%", background:PINK, marginTop:14 }}>LISTO</button>
+          <button onClick={()=>setShowSets(false)} style={{ ...ACTION, width:"100%", background:PINK, color:C1, borderColor:PINK, marginTop:14 }}>Cerrar / Listo</button>
         </div>
       </div>
     )}
@@ -369,35 +373,37 @@ function SessionView({ session, setProgress, sessionExercises, onSaveOverride, o
   const overrides = sessionExercises[session.id]?.overrides || {};
   return (
     <div>
-      <div style={{ background:session.c1, borderBottom:`3px solid ${BR}`, padding:"28px 20px 24px", position:"relative", overflow:"hidden" }}>
-        <div style={{ position:"absolute", right:-35, top:-45, width:150, height:150, border:`3px solid ${BR}`, background:session.c2, transform:"rotate(12deg)" }}/>
+      <div style={{ background:C1, borderBottom:`1px solid ${BR}`, padding:"28px 20px 24px", position:"relative", overflow:"hidden" }}>
+        <div style={{ position:"absolute", left:0, top:0, width:"100%", height:7, background:session.c1 }}/>
         <div style={{ position:"relative", display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
           <div>
-            <div style={{ fontFamily:FBB, fontSize:52, letterSpacing:4, lineHeight:0.9 }}>{session.label}</div>
-            <div style={{ fontSize:12, fontWeight:800, marginTop:10 }}>{session.sub}</div>
+            <div style={{ ...MONO, color:PINK, marginBottom:10 }}>01 / SESIÓN ACTIVA</div>
+            <div style={{ fontFamily:FBB, fontSize:"clamp(48px,15vw,68px)", fontWeight:850, letterSpacing:-3.5, lineHeight:.86, maxWidth:300 }}>{session.label}</div>
+            <div style={{ ...MONO, color:TX2, marginTop:14 }}>{DAY_S[session.day]} / {session.sub}</div>
           </div>
           <div style={{ position:"relative", width:58, height:58, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-            <Ring pct={pct} c1={GN} size={58} thick={4}/>
+            <Ring pct={pct} c1={PINK} size={58} thick={3}/>
             <div style={{ position:"absolute", textAlign:"center" }}>
-              {pct===100 ? <Check size={17} strokeWidth={3}/> : <><div style={{ fontFamily:FBB, fontSize:17, lineHeight:1 }}>{pct}</div><div style={{ fontSize:7, opacity:.7 }}>%</div></>}
+              {pct===100 ? <Check size={17} strokeWidth={2}/> : <div style={{ fontFamily:FM, fontSize:10 }}>{pct}%</div>}
             </div>
           </div>
         </div>
-        <div style={{ display:"flex", position:"relative", marginTop:20, background:C1, border:`2px solid ${BR}`, boxShadow:`4px 4px 0 ${BR}`, overflow:"hidden" }}>
+        <div style={{ display:"flex", position:"relative", marginTop:24, background:"transparent", borderTop:`1px solid ${BR}`, borderBottom:`1px solid ${BR}`, overflow:"hidden" }}>
           {[{v:`${dn}/${tot}`,l:"ejercicios"},{v:String(totalSets||"—"),l:"series"},{v:pct===100?"LISTO":`${tot-dn} left`,l:pct===100?"":"restantes"}].map((s,i)=>(
-            <div key={i} style={{ flex:1, padding:"10px 0", textAlign:"center", borderRight:i<2?`2px solid ${BR}`:"none" }}>
-              <div style={{ fontFamily:FBB, fontSize:20, letterSpacing:1, lineHeight:1 }}>{s.v}</div>
-              <div style={{ fontSize:9, opacity:.6, marginTop:3 }}>{s.l}</div>
+            <div key={i} style={{ flex:1, padding:"12px 4px", borderRight:i<2?`1px solid ${HAIR}`:"none" }}>
+              <div style={{ fontFamily:FM, fontSize:15, fontWeight:500, lineHeight:1 }}>{s.v}</div>
+              <div style={{ ...MONO, fontSize:7, color:MU, marginTop:5 }}>{s.l}</div>
             </div>
           ))}
         </div>
       </div>
-      <div style={{ padding:"12px 14px" }}>
-        {session.sessionNote && <div style={{ fontSize:10, color:TX2, background:C2, borderRadius:8, padding:"8px 12px", marginBottom:10, borderLeft:`3px solid ${session.c1}` }}>{session.sessionNote}</div>}
-        {session.anyOne && <div style={{ fontSize:10, color:MU, background:C1, borderRadius:8, padding:"8px 12px", marginBottom:10 }}>Elige <strong style={{ color:TX2 }}>cualquiera</strong> de las opciones</div>}
-        {items.map((ex, index) => <ExCard key={ex.id} ex={ex} progress={exProgress(ex,setProgress)} done={exDone(ex,setProgress)} c1={session.c1} onToggleSimple={()=>onToggleSimple(ex)} onToggleSet={setIndex=>onToggleSet(ex,setIndex)} isEdited={!!overrides[ex.id]} onSaveOverride={(id,fields)=>onSaveOverride(session.id,id,fields)} onDelete={()=>onDeleteEx(session.id,ex.id)} onMove={dir=>onMoveEx(session.id,ex.id,dir)} isFirst={index===0} isLast={index===items.length-1}/>)}
+      <div style={{ padding:"18px 14px 24px" }}>
+        {session.sessionNote && <div style={{ ...MONO, fontSize:9, color:TX2, background:C2, padding:"10px 12px", marginBottom:12, borderLeft:`3px solid ${PINK}` }}>{session.sessionNote}</div>}
+        {session.anyOne && <div style={{ ...MONO, fontSize:9, color:MU, background:C1, padding:"10px 12px", marginBottom:12, border:`1px solid ${HAIR}` }}>Elige <strong style={{ color:TX2 }}>cualquiera</strong> de las opciones</div>}
+        <div style={{ ...MONO, display:"flex", justifyContent:"space-between", color:TX2, borderBottom:`1px solid ${BR}`, paddingBottom:9 }}><span>02 / EJERCICIOS</span><span>{String(items.length).padStart(2,"0")} ITEMS</span></div>
+        {items.map((ex, index) => <ExCard key={ex.id} ex={ex} index={index} progress={exProgress(ex,setProgress)} done={exDone(ex,setProgress)} c1={session.c1} onToggleSimple={()=>onToggleSimple(ex)} onToggleSet={setIndex=>onToggleSet(ex,setIndex)} isEdited={!!overrides[ex.id]} onSaveOverride={(id,fields)=>onSaveOverride(session.id,id,fields)} onDelete={()=>onDeleteEx(session.id,ex.id)} onMove={dir=>onMoveEx(session.id,ex.id,dir)} isFirst={index===0} isLast={index===items.length-1}/>)}
         {showAdd
-          ? <AddExForm sessionId={session.id} c1={session.c1} c2={session.c2} onAdd={(sid,ex)=>{ onAddEx(sid,ex); setShowAdd(false); }} onCancel={()=>setShowAdd(false)}/>
+          ? <AddExForm sessionId={session.id} onAdd={(sid,ex)=>{ onAddEx(sid,ex); setShowAdd(false); }} onCancel={()=>setShowAdd(false)}/>
           : <button onClick={()=>setShowAdd(true)} style={{ ...ACTION, width:"100%", background:C2, borderStyle:"dashed", display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
               <Plus size={14}/> Agregar ejercicio
             </button>
@@ -414,26 +420,27 @@ function HoyView({ today, sessions, setProgress, onToggleSimple, onToggleSet, se
     const next = (() => { for(let i=1;i<=7;i++){const d=(today+i)%7;const s=sessions.find(x=>x.day===d);if(s)return{s,n:DAY_F[d]};} return null; })();
     return (
       <div style={{ padding:"30px 18px" }}>
-        <div style={{ textAlign:"center", marginBottom:28 }}>
-          <div style={{ fontFamily:FBB, fontSize:60, letterSpacing:5, color:C3, lineHeight:1 }}>DESCANSO</div>
-          <div style={{ fontSize:12, color:MU, marginTop:8 }}>{DAY_F[today]}</div>
+        <div style={{ marginBottom:32, borderBottom:`1px solid ${BR}`, paddingBottom:24 }}>
+          <div style={{ ...MONO, color:PINK, marginBottom:12 }}>01 / ESTADO</div>
+          <div style={{ fontFamily:FBB, fontSize:58, fontWeight:850, letterSpacing:-3, color:TX, lineHeight:.9 }}>DESCANSO</div>
+          <div style={{ ...MONO, color:MU, marginTop:14 }}>{DAY_F[today]} / RECUPERACIÓN ACTIVA</div>
         </div>
         {next && <div style={{ ...PANEL, overflow:"hidden", marginBottom:16 }}>
           <div style={{ height:10, background:next.s.c1, borderBottom:`2px solid ${BR}` }}/>
           <div style={{ padding:"14px 16px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
             <div>
-              <div style={{ fontSize:9, color:MU, letterSpacing:1.5, marginBottom:5 }}>PRÓXIMA SESIÓN</div>
-              <div style={{ fontFamily:FBB, fontSize:24, letterSpacing:2 }}>{next.s.label}</div>
-              <div style={{ fontSize:11, color:TX2, marginTop:3 }}>{next.n} · {next.s.sub}</div>
+              <div style={{ ...MONO, color:PINK, marginBottom:7 }}>02 / PRÓXIMA SESIÓN</div>
+              <div style={{ fontFamily:FBB, fontSize:26, fontWeight:800, letterSpacing:-1 }}>{next.s.label}</div>
+              <div style={{ ...MONO, fontSize:9, color:TX2, marginTop:5 }}>{next.n} / {next.s.sub}</div>
             </div>
             <div style={{ fontSize:11, color:TX2 }}>{resolveSession(next.s, sessionExercises[next.s.id]).items.length} ej.</div>
           </div>
         </div>}
         <div style={{ ...PANEL, padding:"14px 16px" }}>
-          <div style={{ fontSize:9, color:MU, letterSpacing:1.5, marginBottom:12 }}>RECUPERACIÓN</div>
+          <div style={{ ...MONO, color:PINK, marginBottom:12 }}>03 / RECUPERACIÓN</div>
           {["1.8–2g proteína / kg peso","7–9 horas de sueño","35 ml agua × kg peso","20 min caminata si aplica"].map((t,i) => (
-            <div key={i} style={{ fontSize:12, color:TX2, padding:"7px 0", borderTop:i>0?`1px solid ${BR}`:"none", display:"flex", gap:10, alignItems:"center" }}>
-              <span style={{ color:GN, fontSize:9 }}>→</span>{t}
+            <div key={i} style={{ fontSize:12, color:TX2, padding:"10px 0", borderTop:i>0?`1px solid ${HAIR}`:"none", display:"flex", gap:12, alignItems:"center" }}>
+              <span style={{ fontFamily:FM, color:PINK, fontSize:9 }}>{String(i+1).padStart(2,"0")}</span>{t}
             </div>
           ))}
         </div>
@@ -442,7 +449,7 @@ function HoyView({ today, sessions, setProgress, onToggleSimple, onToggleSet, se
   }
   return (
     <div>
-      <div style={{ fontSize:10, color:MU, padding:"10px 18px 0" }}>{DAY_F[today]}</div>
+      <div style={{ ...MONO, color:MU, padding:"12px 18px 0" }}>{DAY_F[today]} / MONITOREO ACTIVO</div>
       <SessionView session={session} setProgress={setProgress} sessionExercises={sessionExercises} onSaveOverride={onSaveOverride} onToggleSimple={onToggleSimple} onToggleSet={onToggleSet} onAddEx={onAddEx} onDeleteEx={onDeleteEx} onMoveEx={onMoveEx}/>
     </div>
   );
@@ -456,7 +463,7 @@ function SemanaView({ sessions, setProgress, onToggleSimple, onToggleSet, sessio
     const prev = idx > 0 ? sessions[idx-1] : null, next = idx < sessions.length-1 ? sessions[idx+1] : null;
     return (
       <div>
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"10px 14px 0" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"12px 14px", borderBottom:`1px solid ${HAIR}` }}>
           <button onClick={()=>setSemId(prev?prev.id:null)} style={{ display:"flex", alignItems:"center", gap:4, background:"none", border:"none", color:TX2, cursor:"pointer", fontFamily:FD, fontSize:12, fontWeight:500, padding:0 }}>
             <ChevronLeft size={14}/>{prev ? prev.label : "Semana"}
           </button>
@@ -470,20 +477,21 @@ function SemanaView({ sessions, setProgress, onToggleSimple, onToggleSet, sessio
   }
   return (
     <div style={{ padding:14 }}>
-      <div style={{ fontSize:10, color:MU, letterSpacing:1, marginBottom:12 }}>SEMANA COMPLETA</div>
-      {sessions.map(s => {
+      <div style={{ ...MONO, color:PINK, marginBottom:10 }}>02 / SEMANA COMPLETA</div>
+      <div style={{ fontFamily:FBB, fontSize:42, fontWeight:850, letterSpacing:-2.5, lineHeight:.95, marginBottom:24 }}>PLAN DE<br/>ENTRENAMIENTO</div>
+      {sessions.map((s, sessionIndex) => {
         const { pct } = sessProgress(s, setProgress, sessionExercises);
         const { items } = resolveSession(s, sessionExercises[s.id]);
         return (
-          <div key={s.id} onClick={()=>setSemId(s.id)} style={{ ...PANEL, marginBottom:12, overflow:"hidden", cursor:"pointer", display:"flex" }}>
-            <div style={{ width:10, background:s.c1, borderRight:`2px solid ${BR}`, flexShrink:0 }}/>
+          <div key={s.id} onClick={()=>setSemId(s.id)} style={{ ...PANEL, marginBottom:0, overflow:"hidden", cursor:"pointer", display:"flex", borderLeft:"none", borderRight:"none", borderBottom:`1px solid ${HAIR}` }}>
+            <div style={{ width:48, padding:"15px 10px", fontFamily:FM, fontSize:11, color:PINK, borderRight:`1px solid ${HAIR}`, flexShrink:0 }}>{String(sessionIndex+1).padStart(2,"0")}</div>
             <div style={{ flex:1, padding:"14px 14px 14px 16px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
               <div>
                 <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
-                  <div style={{ fontFamily:FBB, fontSize:22, letterSpacing:2, lineHeight:1 }}>{s.label}</div>
+                  <div style={{ fontFamily:FBB, fontSize:22, fontWeight:800, letterSpacing:-.8, lineHeight:1 }}>{s.label}</div>
                   {pct===100 && <div style={{ background:GN, color:TX, border:`1.5px solid ${BR}`, fontSize:8, fontWeight:900, padding:"3px 7px" }}>LISTO</div>}
                 </div>
-                <div style={{ fontSize:10, color:TX2 }}>{DAY_S[s.day]} · {s.sub}</div>
+                <div style={{ ...MONO, fontSize:9, color:TX2, marginTop:6 }}>{DAY_S[s.day]} / {s.sub}</div>
                 <div style={{ display:"flex", gap:3, marginTop:8 }}>
                   {items.map(e => (
                     <div key={e.id} style={{ width:10, height:7, background:exDone(e,setProgress)?GN:T_CLR[e.type]||T_CLR.strength, border:`1px solid ${BR}`, opacity:exProgress(e,setProgress)>0?1:.45, transition:"all .2s" }}/>
@@ -492,7 +500,7 @@ function SemanaView({ sessions, setProgress, onToggleSimple, onToggleSet, sessio
               </div>
               <div style={{ display:"flex", alignItems:"center", gap:10 }}>
                 <div style={{ position:"relative", width:44, height:44, display:"flex", alignItems:"center", justifyContent:"center" }}>
-                  <Ring pct={pct} c1={s.c1} c2={s.c2} size={44} thick={3}/>
+                  <Ring pct={pct} c1={PINK} size={44} thick={3}/>
                   <div style={{ position:"absolute", textAlign:"center" }}>
                     {pct===100 ? <Check size={13} color={GN} strokeWidth={3}/> : <div style={{ fontFamily:FBB, fontSize:12, color:TX }}>{pct}<span style={{ fontSize:7 }}>%</span></div>}
                   </div>
@@ -514,16 +522,17 @@ function CarrerasView({ runs, rkm, setRkm, rmin, setRmin, rsec, setRsec, rtype, 
   const best = runs.length ? runs.reduce((b,r) => toS(r.pace) < toS(b.pace) ? r : b) : null;
   const inp = INPUT;
   return (
-    <div style={{ padding:14 }}>
-      <div style={{ fontSize:10, color:MU, letterSpacing:1, marginBottom:12 }}>REGISTRO DE CARRERAS</div>
+    <div style={{ padding:"20px 14px" }}>
+      <div style={{ ...MONO, color:PINK, marginBottom:10 }}>03 / REGISTRO DE CARRERAS</div>
+      <div style={{ fontFamily:FBB, fontSize:42, fontWeight:850, letterSpacing:-2.5, lineHeight:.95, marginBottom:24 }}>VELOCIDAD<br/>Y DISTANCIA</div>
       {best && (
         <div style={{ ...PANEL, overflow:"hidden", marginBottom:16 }}>
           <div style={{ height:10, background:RUN_TYPES.find(t=>t.id===best.type)?.color||GN, borderBottom:`2px solid ${BR}` }}/>
           <div style={{ padding:"14px 16px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
             <div>
-              <div style={{ fontSize:9, color:MU, letterSpacing:1.5, marginBottom:5 }}>MEJOR PACE</div>
-              <div style={{ fontFamily:FBB, fontSize:30, letterSpacing:2, color:GN, lineHeight:1 }}>{best.pace}<span style={{ fontSize:12, fontFamily:FD, color:TX2 }}> min/km</span></div>
-              <div style={{ fontSize:10, color:TX2, marginTop:4 }}>{best.km} km · {best.date}</div>
+              <div style={{ ...MONO, color:MU, marginBottom:7 }}>MEJOR PACE / PB</div>
+              <div style={{ fontFamily:FBB, fontSize:38, fontWeight:850, letterSpacing:-2, color:PINK, lineHeight:1 }}>{best.pace}<span style={{ fontSize:10, fontFamily:FM, color:TX2 }}> MIN/KM</span></div>
+              <div style={{ ...MONO, fontSize:8, color:TX2, marginTop:6 }}>{best.km} KM / {best.date}</div>
             </div>
             <div style={{ textAlign:"right" }}>
               <div style={{ fontFamily:FBB, fontSize:20, color:TX }}>{best.kmh}<span style={{ fontSize:11, fontFamily:FD, color:TX2 }}> km/h</span></div>
@@ -540,21 +549,21 @@ function CarrerasView({ runs, rkm, setRkm, rmin, setRmin, rsec, setRsec, rtype, 
         </div>
       )}
       <div style={{ ...PANEL, padding:16, marginBottom:16 }}>
-        <div style={{ fontSize:10, color:MU, letterSpacing:1.5, marginBottom:14 }}>NUEVA CARRERA</div>
-        <div style={{ fontSize:10, color:TX2, marginBottom:5 }}>Distancia (km)</div>
+        <div style={{ ...MONO, color:PINK, marginBottom:16 }}>FORM / NUEVA CARRERA</div>
+        <div style={{ ...MONO, color:TX2, marginBottom:6 }}>Distancia / KM</div>
         <input type="number" value={rkm} onChange={e=>setRkm(e.target.value)} placeholder="5.0" step="0.1" style={inp}/>
-        <div style={{ fontSize:10, color:TX2, margin:"10px 0 5px" }}>Tiempo total</div>
+        <div style={{ ...MONO, color:TX2, margin:"14px 0 6px" }}>Tiempo total</div>
         <div style={{ display:"flex", gap:8, alignItems:"center" }}>
           <input type="number" value={rmin} onChange={e=>setRmin(e.target.value)} placeholder="min" style={{ ...inp, textAlign:"center" }}/>
           <span style={{ color:MU, fontSize:20 }}>:</span>
           <input type="number" value={rsec} onChange={e=>setRsec(e.target.value)} placeholder="seg" style={{ ...inp, textAlign:"center" }}/>
         </div>
-        <button onClick={onCalc} style={{ ...ACTION, background:PINK, width:"100%", marginTop:12 }}>Calcular pace</button>
+        <button onClick={onCalc} style={{ ...ACTION, background:PINK, color:C1, borderColor:PINK, width:"100%", marginTop:12 }}>Calcular pace</button>
         {pace && (
           <div style={{ ...PANEL, marginTop:12, background:C2, padding:"14px 16px", boxShadow:"none" }}>
-            <div style={{ fontFamily:FBB, fontSize:32, letterSpacing:2, color:GN, lineHeight:1 }}>{pace.pace}<span style={{ fontSize:13, fontFamily:FD, color:TX2 }}> min/km</span></div>
-            <div style={{ fontSize:11, color:TX2, marginTop:5 }}>{pace.kmh} km/h · {pace.km} km</div>
-            <div style={{ display:"flex", marginTop:10, border:`1px solid ${BR}`, borderRadius:8, overflow:"hidden" }}>
+            <div style={{ fontFamily:FBB, fontSize:40, fontWeight:850, letterSpacing:-2, color:PINK, lineHeight:1 }}>{pace.pace}<span style={{ fontSize:10, fontFamily:FM, color:TX2 }}> MIN/KM</span></div>
+            <div style={{ ...MONO, fontSize:9, color:TX2, marginTop:7 }}>{pace.kmh} KM/H / {pace.km} KM</div>
+            <div style={{ display:"flex", marginTop:10, border:`1px solid ${BR}`, overflow:"hidden" }}>
               {[{d:5,l:"5K"},{d:10,l:"10K"},{d:21,l:"21K 🎯"},{d:42,l:"42K"}].map((r,i) => (
                 <div key={r.d} style={{ flex:1, padding:"8px 0", textAlign:"center", borderRight:i<3?`1px solid ${BR}`:"none", background:r.d===21?"rgba(0,208,132,0.07)":"transparent" }}>
                   <div style={{ fontFamily:FBB, fontSize:14, color:r.d===21?GN:TX }}>{raceTime(pace.pace, r.d)}</div>
@@ -565,34 +574,34 @@ function CarrerasView({ runs, rkm, setRkm, rmin, setRmin, rsec, setRsec, rtype, 
             <div style={{ fontSize:10, color:MU, letterSpacing:1, margin:"12px 0 8px" }}>TIPO DE SESIÓN</div>
             <div style={{ display:"flex", gap:6 }}>
               {RUN_TYPES.map(t => (
-                <button key={t.id} onClick={()=>setRtype(t.id)} style={{ ...ACTION, flex:1, background:rtype===t.id?t.color:C1, boxShadow:rtype===t.id?`3px 3px 0 ${BR}`:"none", fontSize:10 }}>{t.label}</button>
+                <button key={t.id} onClick={()=>setRtype(t.id)} style={{ ...ACTION, flex:1, background:rtype===t.id?BR:C1, color:rtype===t.id?C1:TX }}>{t.label}</button>
               ))}
             </div>
-            <button onClick={onSave} style={{ ...ACTION, background:GN, width:"100%", marginTop:12 }}>Guardar ✓</button>
+            <button onClick={onSave} style={{ ...ACTION, background:PINK, color:C1, borderColor:PINK, width:"100%", marginTop:12 }}>Guardar / Confirmar</button>
           </div>
         )}
       </div>
       {runs.length > 0 ? (
         <div>
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
-            <div style={{ fontSize:10, color:MU, letterSpacing:1 }}>HISTORIAL ({runs.length})</div>
+            <div style={{ ...MONO, color:MU }}>HISTORIAL / {String(runs.length).padStart(2,"0")}</div>
             {!cfm
               ? <button onClick={()=>setCfm(true)} style={{ background:"none", border:"none", cursor:"pointer", color:MU, fontSize:10, display:"flex", alignItems:"center", gap:4 }}><Trash2 size={12}/>Borrar todo</button>
               : <div style={{ display:"flex", gap:8, alignItems:"center" }}>
                   <span style={{ fontSize:10, color:TX2 }}>¿Seguro?</span>
-                  <button onClick={()=>{onClear();setCfm(false);}} style={{ background:"#DC2626", border:"none", borderRadius:5, color:TX, fontSize:10, fontWeight:700, padding:"4px 10px", cursor:"pointer" }}>Sí</button>
-                  <button onClick={()=>setCfm(false)} style={{ background:C3, border:"none", borderRadius:5, color:TX2, fontSize:10, padding:"4px 10px", cursor:"pointer" }}>No</button>
+                  <button onClick={()=>{onClear();setCfm(false);}} style={{ ...ACTION, minHeight:40, background:PINK, color:C1, borderColor:PINK, padding:"4px 10px" }}>Sí</button>
+                  <button onClick={()=>setCfm(false)} style={{ ...ACTION, minHeight:40, background:C1, padding:"4px 10px" }}>No</button>
                 </div>
             }
           </div>
           {[...runs].reverse().map((r, i) => {
             const tInfo = RUN_TYPES.find(t => t.id === r.type);
             return (
-              <div key={i} style={{ ...PANEL, padding:"12px 14px", marginBottom:10, display:"flex", justifyContent:"space-between", alignItems:"center", boxShadow:`3px 3px 0 ${BR}` }}>
+              <div key={i} style={{ ...PANEL, padding:"12px 14px", marginBottom:0, display:"flex", justifyContent:"space-between", alignItems:"center", borderLeft:"none", borderRight:"none", borderBottom:`1px solid ${HAIR}` }}>
                 <div>
                   <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:3 }}>
-                    <div style={{ fontFamily:FBB, fontSize:20, letterSpacing:1, lineHeight:1 }}>{r.pace}<span style={{ fontSize:10, fontFamily:FD, fontWeight:400, color:TX2 }}> min/km</span></div>
-                    {tInfo && <span style={{ fontSize:8, fontWeight:700, color:tInfo.color, border:`1px solid ${tInfo.color}`, borderRadius:10, padding:"2px 7px" }}>{tInfo.label}</span>}
+                    <div style={{ fontFamily:FBB, fontSize:24, fontWeight:800, letterSpacing:-1, lineHeight:1 }}>{r.pace}<span style={{ fontSize:9, fontFamily:FM, fontWeight:400, color:TX2 }}> MIN/KM</span></div>
+                    {tInfo && <span style={{ ...MONO, fontSize:7, color:tInfo.color }}>{tInfo.label}</span>}
                   </div>
                   <div style={{ fontSize:10, color:TX2 }}>{r.date} · {r.km} km · {r.kmh} km/h</div>
                 </div>
@@ -624,7 +633,6 @@ export default function GymTracker() {
   const [rtype,setRtype]=useState("z2"); const [pace,setPace]=useState(null);
 
   useEffect(() => {
-    try { const l=document.createElement("link"); l.rel="stylesheet"; l.href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap"; document.head.appendChild(l); } catch {}
     (async () => {
       try {
         const w = isoWeek();
@@ -731,37 +739,36 @@ export default function GymTracker() {
   const progressSum = activeItems.reduce((sum,ex)=>sum + exProgress(ex,setProgress)/exTotal(ex),0);
   const wPct = totalEx ? Math.round((progressSum/totalEx)*100) : 0;
 
-  if (!loaded) return <div style={{background:BG,height:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:FBB,fontSize:18,letterSpacing:6,color:MU}}>CARGANDO</div>;
+  if (!loaded) return <div style={{background:BG,height:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:FM,fontSize:10,letterSpacing:3,color:MU}}>CARGANDO / 00</div>;
 
   const sp = { setProgress, onToggleSimple:toggleSimple, onToggleSet:toggleSet, sessionExercises, onSaveOverride:saveOverride, onAddEx:addEx, onDeleteEx:deleteEx, onMoveEx:moveEx };
 
   return (
-    <div style={{ background:BG, fontFamily:FD, color:TX, minHeight:"100vh", maxWidth:480, margin:"0 auto", borderLeft:`2px solid ${BR}`, borderRight:`2px solid ${BR}`, paddingBottom:"calc(80px + env(safe-area-inset-bottom))" }}>
-      <style>{`*{box-sizing:border-box}::-webkit-scrollbar{display:none}input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}input[type=number]{-moz-appearance:textfield}input:focus,textarea:focus{outline:3px solid ${PINK};outline-offset:1px}button{min-height:48px}.tap:active,button:active{transform:translate(2px,2px);box-shadow:none!important}body{background:${C2}!important}`}</style>
+    <div style={{ background:BG, fontFamily:FD, color:TX, minHeight:"100vh", maxWidth:480, margin:"0 auto", borderLeft:`1px solid ${HAIR}`, borderRight:`1px solid ${HAIR}`, paddingBottom:"calc(80px + env(safe-area-inset-bottom))" }}>
+      <style>{`*{box-sizing:border-box}::-webkit-scrollbar{display:none}input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}input[type=number]{-moz-appearance:textfield}input:focus,textarea:focus{outline:2px solid ${PINK};outline-offset:1px}button{min-height:48px}.tap:active,button:active{opacity:.68}body{background:${C2}!important}`}</style>
 
       {/* HEADER */}
-      <div style={{ padding:"16px 16px 12px", position:"sticky", top:0, zIndex:90, background:BG, borderBottom:`3px solid ${BR}` }}>
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+      <div style={{ padding:"16px 16px 14px", position:"sticky", top:0, zIndex:90, background:"rgba(233,223,200,.96)", borderBottom:`1px solid ${BR}` }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:16 }}>
           <div>
-            <div style={{ fontFamily:FBB, fontSize:27, letterSpacing:2, lineHeight:1 }}>GYM<span style={{ background:PINK, border:`2px solid ${BR}`, padding:"0 4px", marginLeft:3 }}>TRACK</span></div>
-            <div style={{ fontSize:10, fontWeight:800, color:TX2, marginTop:7 }}>{DAY_F[todayN]} · {isoWeek()}</div>
+            <div style={{ fontFamily:FBB, fontSize:29, fontWeight:900, letterSpacing:-1.7, lineHeight:1 }}>GYM<span style={{ color:PINK }}>TRACK</span></div>
+            <div style={{ ...MONO, fontSize:8, color:TX2, marginTop:8 }}>EST. 2026 / {DAY_S[todayN]} / {isoWeek().replace("2026-","")}</div>
           </div>
           <div style={{ display:"flex", alignItems:"center", gap:10 }}>
             <div style={{ textAlign:"right" }}>
-              <div style={{ fontFamily:FBB, fontSize:22, letterSpacing:1, lineHeight:1 }}>{wPct}<span style={{ fontSize:11, color:MU, fontFamily:FD }}>%</span></div>
-              <div style={{ fontSize:10, color:MU }}>{doneEx}/{totalEx}</div>
+              <div style={{ fontFamily:FBB, fontSize:30, fontWeight:850, letterSpacing:-1.5, lineHeight:.9 }}>{wPct}<span style={{ fontSize:10, color:PINK, fontFamily:FM }}>%</span></div>
+              <div style={{ ...MONO, fontSize:7, color:MU, marginTop:5 }}>VIGOR / {doneEx}:{totalEx}</div>
             </div>
             <div style={{ position:"relative", width:36, height:36, display:"flex", alignItems:"center", justifyContent:"center" }}>
-              <Ring pct={wPct} c1={PINK} size={40} thick={4}/>
-              <div style={{ position:"absolute", fontFamily:FBB, fontSize:9, color:TX }}>{wPct}</div>
+              <Ring pct={wPct} c1={PINK} size={40} thick={3}/>
             </div>
           </div>
         </div>
         {/* ROUTINE SWITCHER */}
-        <div style={{ display:"flex", gap:8 }}>
-          {[{id:"principal",label:"Principal"},{id:"mantenimiento",label:"Mantenimiento"}].map(r => (
+        <div style={{ display:"flex", border:`1px solid ${BR}` }}>
+          {[{id:"principal",label:"A / Principal"},{id:"mantenimiento",label:"B / Mantenimiento"}].map((r,i) => (
             <button key={r.id} className="tap" onClick={()=>switchRoutine(r.id)}
-              style={{ ...ACTION, flex:1, background:routine===r.id?YELLOW:C1, boxShadow:routine===r.id?`3px 3px 0 ${BR}`:"none" }}>
+              style={{ ...ACTION, flex:1, border:"none", borderRight:i===0?`1px solid ${BR}`:"none", background:routine===r.id?BR:"transparent", color:routine===r.id?C1:TX }}>
               {r.label}
             </button>
           ))}
@@ -774,10 +781,11 @@ export default function GymTracker() {
         {tab==="carreras" && <CarrerasView runs={runs} rkm={rkm} setRkm={setRkm} rmin={rmin} setRmin={setRmin} rsec={rsec} setRsec={setRsec} rtype={rtype} setRtype={setRtype} pace={pace} onCalc={calcPace} onSave={saveRun} onDelete={deleteRun} onClear={clearRuns}/>}
       </main>
 
-      <nav style={{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:480, minHeight:"calc(72px + env(safe-area-inset-bottom))", paddingBottom:"env(safe-area-inset-bottom)", background:C1, border:`2px solid ${BR}`, borderBottom:"none", display:"flex", zIndex:100 }}>
-        {[{id:"hoy",lbl:"Hoy"},{id:"semana",lbl:"Semana"},{id:"carreras",lbl:"Correr"}].map(t => (
-          <button key={t.id} className="tap" onClick={()=>{setTab(t.id);setSemId(null);}} style={{ flex:1, border:"none", borderRight:t.id!=="carreras"?`2px solid ${BR}`:"none", background:tab===t.id?PINK:C1, cursor:"pointer", padding:"14px 0", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", position:"relative" }}>
-            <div style={{ fontFamily:FBB, fontSize:20, color:TX, letterSpacing:1.2 }}>{t.lbl}</div>
+      <nav style={{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:480, minHeight:"calc(72px + env(safe-area-inset-bottom))", paddingBottom:"env(safe-area-inset-bottom)", background:C1, borderTop:`1px solid ${BR}`, display:"flex", zIndex:100 }}>
+        {[{id:"hoy",num:"01",lbl:"Hoy"},{id:"semana",num:"02",lbl:"Semana"},{id:"carreras",num:"03",lbl:"Correr"}].map(t => (
+          <button key={t.id} className="tap" onClick={()=>{setTab(t.id);setSemId(null);}} style={{ flex:1, border:"none", borderRight:t.id!=="carreras"?`1px solid ${HAIR}`:"none", borderTop:tab===t.id?`3px solid ${PINK}`:"3px solid transparent", background:tab===t.id?BR:C1, color:tab===t.id?C1:TX, cursor:"pointer", padding:"12px 0", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:4, position:"relative" }}>
+            <div style={{ fontFamily:FM, fontSize:8, color:tab===t.id?PINK:MU, letterSpacing:1 }}>{t.num}</div>
+            <div style={{ fontFamily:FM, fontSize:10, fontWeight:500, textTransform:"uppercase", letterSpacing:1 }}>{t.lbl}</div>
           </button>
         ))}
       </nav>

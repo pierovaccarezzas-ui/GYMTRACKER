@@ -3,7 +3,7 @@
 ```yaml
 plan_id: PLAN-004
 slug: swiss-neobrutalist-editorial-redesign
-status: planned                 # planned → approved → in_progress → in_review → passing
+status: in_review               # planned → approved → in_progress → in_review → passing
 executor: claude-design         # diseño de interfaz (desviación dirigida por el usuario: ya NO se usa V0)
 executor_fallback: codex        # si Claude Design no ejecuta, lo aplica Codex
 author: Planner (Opus 4.8)

@@ -5,8 +5,8 @@
 - **Repository root**: `/Users/pierovaccarezza/Downloads/PWA gym tracker`
 - **Standard startup path**: `./init.sh`
 - **Standard verification path**: `./init.sh` → `npm run build` → check `dist/index.html`, `dist/manifest.webmanifest`, `dist/sw.js`, and `dist/assets/`
-- **Current highest-priority unfinished feature**: `ui-002` — Workout history & statistics (status: `not_started`)
-- **Current blocker**: None. (Brutalist redesign, set tracking, warmup category, and name editing verified passing).
+- **Current active execution**: `PLAN-004` — `ui-009` implemented, status: `in_progress`, awaiting Reviewer visual verification.
+- **Current blocker**: None. Local browser smoke was blocked by browser URL policy; Reviewer must perform the visual smoke.
 
 ---
 
@@ -378,3 +378,39 @@
     new visual system (e.g. the warmup category needs a token color in the new palette).
 - **Next best step**: User approves PLAN-004 (status → `approved`); Claude Design (or Codex)
   implements it in `src/GymTracker.jsx` + `src/index.css` + `public/fonts/` after `./init.sh` passes.
+
+### Session 010
+
+- **Date**: 2026-06-09
+- **Agent**: Executor (Codex fallback for Claude Design)
+- **Goal**: Continue and execute approved `PLAN-004` for the Swiss Neo-Brutalist SaaS editorial
+  redesign without changing application behavior.
+- **Completed**:
+  - Confirmed Claude Design left the approved plan but no uncommitted implementation work.
+  - Replaced the pastel brutalist visual tokens with a paper/ink/editorial-red system.
+  - Added self-hosted Inter variable and IBM Plex Mono fonts under `public/fonts/`; removed the
+    runtime Google Fonts injection.
+  - Applied editorial headlines, mono technical labels, hairline grid, flat session blocks, and
+    numbered `01/02/03` sections/navigation across Hoy, Semana, Correr, forms, and set tracking.
+  - Preserved >=48px touch targets and all PLAN-003 functional interactions.
+  - Updated `FEATURE_LIST.json`: `ui-009` -> `in_progress`; did not mark it passing.
+- **Verification run**:
+  - Baseline and final `./init.sh` -> exit 0.
+  - `npm run build` -> exit 0; PWA precache increased to 18 entries and includes all 3 local
+    font files.
+  - `git diff --check` -> exit 0.
+  - Search confirmed no `fonts.googleapis`, `Bebas Neue`, or `linear-gradient` references in
+    source/build.
+  - Diff audit confirmed data/storage handlers were unchanged; only the sanctioned Google Fonts
+    injection was removed from the data-loading effect.
+- **Evidence captured**: `dist/fonts/` contains Inter + IBM Plex Mono; manifest theme/background
+  are `#E9DFC8`; service worker precaches the three woff2 files.
+- **Commits**: `Implement PLAN-004 Swiss editorial redesign`.
+- **Files or artifacts updated**: `src/GymTracker.jsx`, `src/index.css`, `public/fonts/`,
+  `index.html`, `vite.config.js`, `FEATURE_LIST.json`, `PROGRESS.md`, `docs/plans/PLAN-004-...md`.
+- **Known risk or unresolved issue**:
+  - Local browser visual smoke was blocked by the Browser URL policy. Reviewer must inspect the
+    mobile viewport before marking `ui-009` passing.
+  - `npm run lint` retains three preexisting empty-catch errors; `init.sh` treats lint as
+    non-blocking.
+- **Next best step**: Reviewer performs mobile visual/regression smoke and records pass/fail evidence.
