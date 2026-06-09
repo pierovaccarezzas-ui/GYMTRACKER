@@ -3,7 +3,7 @@
 ```yaml
 plan_id: PLAN-003
 slug: brutalist-redesign-and-set-tracking
-status: in_review          # planned → approved → in_progress → in_review → passing
+status: passing            # Reviewer (Antigravity) verified 2026-06-08
 executor: v0               # diseño de interfaz → V0 (todo el look & feel)
 executor_secondary: codex  # SOLO el modelo de datos del marcado por series (state/storage)
 author: Planner (Opus 4.8)

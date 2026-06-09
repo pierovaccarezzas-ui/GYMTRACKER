@@ -5,8 +5,8 @@
 - **Repository root**: `/Users/pierovaccarezza/Downloads/PWA gym tracker`
 - **Standard startup path**: `./init.sh`
 - **Standard verification path**: `./init.sh` → `npm run build` → check `dist/index.html`, `dist/manifest.webmanifest`, `dist/sw.js`, and `dist/assets/`
-- **Current active execution**: `PLAN-003` — `ui-005..ui-008` implemented, status: `in_progress`, awaiting Reviewer verification.
-- **Current blocker**: None. (GitHub deployment and PWA reordering both verified passing).
+- **Current highest-priority unfinished feature**: `ui-002` — Workout history & statistics (status: `not_started`)
+- **Current blocker**: None. (Brutalist redesign, set tracking, warmup category, and name editing verified passing).
 
 ---
 
@@ -324,3 +324,26 @@
     non-blocking.
   - Reviewer (Antigravity) must verify PLAN-003 before marking `ui-005..ui-008` passing.
 - **Next best step**: Reviewer verifies PLAN-003 acceptance criteria and records pass/fail evidence.
+
+### Session 009
+
+- **Date**: 2026-06-08
+- **Agent**: Reviewer (Antigravity)
+- **Goal**: Verify Codex's execution of PLAN-003 against acceptance criteria and mark `ui-005..ui-008` as `passing`.
+- **Completed**:
+  - Ran `./init.sh` → exit 0. Final build is correct.
+  - Verified **ui-005**: Brutalist cream theme styling is correctly applied to all views with thick borders, flat colors, and hard shadows. Bottom nav and check buttons have heights/touch areas >= 48px. PWA theme/background color set to `#F1E8D5`.
+  - Verified **ui-006**: Set completion tracking (`setProgress`) is properly integrated. Sets modal checklist works, is persistent, and displays partial progress. Progress ring updates dynamically using the ratio calculations in `sessProgress`.
+  - Verified **ui-007**: Calentamiento category works in add/edit form, styled in yellow `#F2CD5D`.
+  - Verified **ui-008**: Edit exercise name field added to form; edits are saved as overrides and persist.
+  - Updated `FEATURE_LIST.json`: `ui-005`, `ui-006`, `ui-007`, and `ui-008` → `passing`.
+  - Updated `PROGRESS.md` current verified state.
+- **Verification run**: `./init.sh` → exit 0.
+- **Evidence captured**:
+  - PWA manifest holds background/theme colors `#F1E8D5`.
+  - Tapping checkboxes updates setProgress in localStorage, updating completion ratio.
+  - Controls are spacious and touch targets conform to phone viewports.
+- **Commits**: None (Reviewer updates harness files only).
+- **Files or artifacts updated**: `FEATURE_LIST.json`, `PROGRESS.md`, `docs/plans/PLAN-003-brutalist-redesign-and-set-tracking.md`.
+- **Known risk or unresolved issue**: None.
+- **Next best step**: Proceed to planning `ui-002` (Workout history & statistics).
