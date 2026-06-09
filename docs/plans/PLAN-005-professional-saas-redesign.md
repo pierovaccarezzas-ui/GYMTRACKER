@@ -3,7 +3,7 @@
 ```yaml
 plan_id: PLAN-005
 slug: professional-saas-redesign
-status: in_review
+status: passing
 executor: v0
 executor_actual: codex
 author: Planner (Opus 4.8)
