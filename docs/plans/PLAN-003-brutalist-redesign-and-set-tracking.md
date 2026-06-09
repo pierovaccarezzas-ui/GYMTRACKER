@@ -3,7 +3,7 @@
 ```yaml
 plan_id: PLAN-003
 slug: brutalist-redesign-and-set-tracking
-status: planned            # planned → approved → in_progress → in_review → passing
+status: in_review          # planned → approved → in_progress → in_review → passing
 executor: v0               # diseño de interfaz → V0 (todo el look & feel)
 executor_secondary: codex  # SOLO el modelo de datos del marcado por series (state/storage)
 author: Planner (Opus 4.8)

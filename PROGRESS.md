@@ -5,7 +5,7 @@
 - **Repository root**: `/Users/pierovaccarezza/Downloads/PWA gym tracker`
 - **Standard startup path**: `./init.sh`
 - **Standard verification path**: `./init.sh` → `npm run build` → check `dist/index.html`, `dist/manifest.webmanifest`, `dist/sw.js`, and `dist/assets/`
-- **Current highest-priority unfinished feature**: `ui-002` — Workout history & statistics (status: `not_started`)
+- **Current active execution**: `PLAN-003` — `ui-005..ui-008` implemented, status: `in_progress`, awaiting Reviewer verification.
 - **Current blocker**: None. (GitHub deployment and PWA reordering both verified passing).
 
 ---
@@ -290,3 +290,37 @@
 - **Files or artifacts updated**: `FEATURE_LIST.json`, `PROGRESS.md`, `docs/plans/PLAN-002-exercise-reorder-unified-storage.md`.
 - **Known risk or unresolved issue**: None.
 - **Next best step**: Proceed to planning `ui-002` (Workout history & statistics).
+
+### Session 009
+
+- **Date**: 2026-06-08
+- **Agent**: Executor (Codex, including the PLAN-003 V0 lane by user request)
+- **Goal**: Execute approved `PLAN-003`: professional cream/pastel brutalist redesign,
+  large mobile touch targets, per-set tracking, Calentamiento, and editable exercise names.
+- **Completed**:
+  - Reworked Hoy, Semana, Correr, session headers, cards, forms, actions, and bottom nav into
+    a cream/pastel brutalist system with thick black borders, hard shadows, and >=48px controls.
+  - Added `setProgress` persistence, legacy `done` migration, weekly reset, partial-progress
+    rings/percentages, and a focused per-set sheet for strength/warmup exercises.
+  - Added Calentamiento to create/edit selectors and added persistent name/type editing through
+    `sessionExercises.overrides`.
+  - Updated PWA theme/background colors to cream.
+  - Updated `FEATURE_LIST.json`: `ui-005..ui-008` -> `in_progress`; did not mark them passing.
+- **Verification run**:
+  - Baseline and final `./init.sh` -> exit 0.
+  - `npm run build` -> exit 0; PWA artifacts generated.
+  - Mobile browser smoke at 390x844 -> Hoy/Semana/Correr render; zero console errors.
+  - Marked 1/4 sets, reloaded, and confirmed partial progress persisted and percentages changed;
+    restored test progress afterward.
+  - Opened add/edit forms and confirmed Calentamiento is available.
+  - Renamed a base exercise, saved/reloaded, confirmed name + `editado`, then reset test data.
+- **Evidence captured**: Browser checks above; source writes completion only to `setProgress`,
+  while legacy `done` is read only for migration. `git diff --check` passes.
+- **Commits**: `Implement PLAN-003 brutalist redesign and set tracking`.
+- **Files or artifacts updated**: `src/GymTracker.jsx`, `src/index.css`, `index.html`,
+  `vite.config.js`, `FEATURE_LIST.json`, `PROGRESS.md`, `docs/plans/PLAN-003-...md`.
+- **Known risk or unresolved issue**:
+  - `npm run lint` still reports four preexisting empty-catch issues; `init.sh` treats lint as
+    non-blocking.
+  - Reviewer (Antigravity) must verify PLAN-003 before marking `ui-005..ui-008` passing.
+- **Next best step**: Reviewer verifies PLAN-003 acceptance criteria and records pass/fail evidence.
