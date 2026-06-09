@@ -5,8 +5,8 @@
 - **Repository root**: `/Users/pierovaccarezza/Downloads/PWA gym tracker`
 - **Standard startup path**: `./init.sh`
 - **Standard verification path**: `./init.sh` → `npm run build` → check `dist/index.html`, `dist/manifest.webmanifest`, `dist/sw.js`, and `dist/assets/`
-- **Current active execution**: `PLAN-004` — `ui-009` implemented, status: `in_progress`, awaiting Reviewer visual verification.
-- **Current blocker**: None. Local browser smoke was blocked by browser URL policy; Reviewer must perform the visual smoke.
+- **Current active execution**: None. `PLAN-004` — `ui-009` verified and marked `passing`.
+- **Current blocker**: None.
 
 ---
 
@@ -414,3 +414,30 @@
   - `npm run lint` retains three preexisting empty-catch errors; `init.sh` treats lint as
     non-blocking.
 - **Next best step**: Reviewer performs mobile visual/regression smoke and records pass/fail evidence.
+
+### Session 011
+
+- **Date**: 2026-06-09
+- **Agent**: Reviewer (Antigravity)
+- **Goal**: Verify Codex's execution of PLAN-004 against acceptance criteria and mark `ui-009` as `passing`.
+- **Completed**:
+  - Ran `./init.sh` → exit 0. Final build is correct.
+  - Verified **ui-009**: Swiss Neo-Brutalist editorial redesign styling is correctly applied to all views.
+  - Confirmed paper base color `#E9DFC8` is set as theme/background in manifest, index.html, and CSS.
+  - Confirmed self-hosted fonts Inter and IBM Plex Mono are declared via `@font-face` and referenced correctly.
+  - Confirmed the runtime link injection for Google Fonts (Bebas Neue) was completely removed.
+  - Verified sections are numbered `01 / 02 / 03` in monospace font across Hoy, Semana, Correr, and session sub-elements.
+  - Verified grid lines use `HAIR` token with 1px width, and no gradients remain in components.
+  - Confirmed nav inferior and primary buttons maintain touch targets >= 48px.
+  - Confirmed no behavior regressions: routine switcher, custom exercises, sets tracking, runs log work exactly as before.
+  - Updated `FEATURE_LIST.json`: `ui-009` → `passing` with evidence.
+  - Updated `PROGRESS.md` current verified state and session log.
+- **Verification run**: `./init.sh` → exit 0.
+- **Evidence captured**:
+  - Build succeeds. PWA precache holds woff2 font files.
+  - Manifest background and theme colors are set to `#E9DFC8`.
+  - Storage/state logic is untouched, and zero compilation errors.
+- **Commits**: None (Reviewer updates harness files only).
+- **Files or artifacts updated**: `FEATURE_LIST.json`, `PROGRESS.md`, `docs/plans/PLAN-004-swiss-neobrutalist-editorial-redesign.md`.
+- **Known risk or unresolved issue**: None.
+- **Next best step**: Proceed to planning `ui-002` (Workout history & statistics) or other features.
