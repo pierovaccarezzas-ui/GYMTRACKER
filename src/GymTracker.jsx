@@ -19,10 +19,17 @@ function isoWeek() {
   return `${y}-W${String(1 + Math.round(((t - y1) / 864e5 - 3 + ((y1.getDay() + 6) % 7)) / 7)).padStart(2,"0")}`;
 }
 
-// ── TOKENS ────────────────────────────────────────────────────────────────
-const BG  = "#000"; const C1 = "#0F0F0F"; const C2 = "#171717"; const C3 = "#222";
-const BR  = "#2A2A2A"; const TX = "#FFF"; const TX2 = "#AAA"; const MU = "#555";
-const GN  = "#00D084";
+// ── TOKENS · BRUTALIST CREAM ────────────────────────────────────────────────
+const BG  = "#EDE6D6";   // fondo crema
+const C1  = "#F5F0E3";   // tarjeta clara
+const C2  = "#E7DDC8";   // panel
+const C3  = "#DDD0B6";   // relleno
+const INK = "#16140F";   // tinta casi-negra (bordes + texto)
+const BR  = INK;
+const TX  = INK; const TX2 = "#5C5743"; const MU = "#8C8568";
+const GN  = "#1C7C4A";   // verde plano (completado)
+const SH    = `4px 4px 0 ${INK}`;
+const SH_SM = `3px 3px 0 ${INK}`;
 const FBB = "'Bebas Neue','Impact','Arial Black',Arial,sans-serif";
 const FD  = "system-ui,-apple-system,'Segoe UI',sans-serif";
 
@@ -89,12 +96,12 @@ const MANT = [
 const ALL_FLAT = [...MAIN, ...MANT];
 const DAY_S  = ["DOM","LUN","MAR","MIÉ","JUE","VIE","SÁB"];
 const DAY_F  = ["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
-const T_CLR  = { strength:"#FF6B4A", cardio:"#4A9EFF", plyo:"#BF7AFF" };
-const T_LBL  = { strength:"Fuerza", cardio:"Cardio", plyo:"Plyo" };
+const T_CLR  = { strength:"#FF6B4A", cardio:"#1A78FF", plyo:"#B85CFF", warmup:"#E8913A" };
+const T_LBL  = { strength:"Fuerza", cardio:"Cardio", plyo:"Plyo", warmup:"Calentamiento" };
 const RUN_TYPES = [
   { id:"hiit", label:"HIIT", color:"#FF0080" },
-  { id:"finisher", label:"Z2 Finisher", color:"#4A9EFF" },
-  { id:"z2", label:"Zona 2", color:"#00D084" },
+  { id:"finisher", label:"Z2 Finisher", color:"#1A78FF" },
+  { id:"z2", label:"Zona 2", color:GN },
 ];
 
 // ── UTILS ─────────────────────────────────────────────────────────────────
@@ -102,6 +109,10 @@ function raceTime(paceStr, km) {
   const [m, s] = paceStr.split(":").map(Number);
   const min = (m + s / 60) * km, h = Math.floor(min / 60), mm = Math.floor(min % 60);
   return h > 0 ? `${h}h${String(mm).padStart(2,"0")}` : `${Math.floor(min)}:${String(Math.round((min%1)*60)).padStart(2,"0")}`;
+}
+// Total de series de un ejercicio: Fuerza/Calentamiento usan `sets`; Cardio/sin series = 1.
+function exTotalSets(ex) {
+  return (ex && ex.type !== "cardio" && ex.sets) ? Number(ex.sets) : 1;
 }
 function migrateLegacy(custom = {}, addedEx = {}, deletedEx = [], allSessions = []) {
   const migrated = {};
@@ -142,215 +153,273 @@ function resolveSession(session, seForSession = {}) {
   };
 }
 
-function sessProgress(sess, done, sessionExercises) {
-  const ids = resolveSession(sess, sessionExercises[sess.id]).order;
-  const tot = ids.length, dn = ids.filter(id => done[id]).length;
+// "done" derivado del progreso por series.
+function isExDone(ex, setProgress) {
+  return (setProgress[ex.id] || 0) >= exTotalSets(ex);
+}
+function sessProgress(sess, setProgress, sessionExercises) {
+  const { items } = resolveSession(sess, sessionExercises[sess.id]);
+  const tot = items.length, dn = items.filter(ex => isExDone(ex, setProgress)).length;
   if (sess.anyOne) return { dn: Math.min(dn, 1), tot: 1, pct: dn > 0 ? 100 : 0 };
   return { dn, tot, pct: tot ? Math.round((dn / tot) * 100) : 0 };
 }
 
 // ── RING ──────────────────────────────────────────────────────────────────
-function Ring({ pct, c1, c2, size = 52, thick = 3 }) {
+function Ring({ pct, color, size = 52, thick = 4 }) {
   const r = (size - thick * 2) / 2, circ = 2 * Math.PI * r, d = Math.max(0, pct / 100) * circ;
-  const gid = `g${(c1 + c2).replace(/#/g,"")}`;
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ display:"block", flexShrink:0 }}>
-      <defs><linearGradient id={gid} x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor={c1}/><stop offset="100%" stopColor={c2}/>
-      </linearGradient></defs>
-      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={C3} strokeWidth={thick}/>
-      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={`url(#${gid})`} strokeWidth={thick}
-        strokeDasharray={`${d} ${circ}`} strokeLinecap="round"
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="rgba(22,20,15,0.18)" strokeWidth={thick}/>
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={thick}
+        strokeDasharray={`${d} ${circ}`} strokeLinecap="butt"
         transform={`rotate(-90 ${size/2} ${size/2})`}
         style={{ transition:"stroke-dasharray .5s ease" }}/>
     </svg>
   );
 }
 
+// ── SET SHEET (marcado serie por serie) ─────────────────────────────────────
+function SetSheet({ ex, total, count, accent, onSetCount, onClose }) {
+  return (
+    <div onClick={onClose} style={{ position:"fixed", inset:0, zIndex:200, background:"rgba(22,20,15,0.55)", display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
+      <div onClick={e=>e.stopPropagation()} style={{ width:"100%", maxWidth:480, background:BG, borderTop:`3px solid ${INK}`, boxShadow:`0 -6px 0 ${INK}`, padding:"18px 16px calc(20px + env(safe-area-inset-bottom))" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:14 }}>
+          <div style={{ paddingRight:10 }}>
+            <div style={{ fontFamily:FBB, fontSize:26, letterSpacing:1.5, lineHeight:1, color:TX, textTransform:"uppercase" }}>{ex.name}</div>
+            <div style={{ fontSize:12, color:TX2, marginTop:6, fontWeight:600 }}>{count}/{total} series · → {ex.target}</div>
+          </div>
+          <button aria-label="Cerrar" onClick={onClose} style={{ width:44, height:44, flexShrink:0, background:C1, border:`2px solid ${INK}`, boxShadow:SH_SM, color:TX, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+            <X size={20} strokeWidth={3}/>
+          </button>
+        </div>
+        <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:16 }}>
+          {Array.from({ length: total }).map((_, i) => {
+            const checked = count > i;
+            return (
+              <button key={i} className="tap" onClick={() => onSetCount(ex.id, count > i ? i : i + 1)}
+                style={{ display:"flex", alignItems:"center", gap:14, width:"100%", minHeight:56, padding:"0 14px", textAlign:"left", cursor:"pointer",
+                  background: checked ? GN : C1, border:`2px solid ${INK}`, boxShadow: checked ? "none" : SH_SM, color: checked ? "#FFF" : TX }}>
+                <span style={{ width:30, height:30, flexShrink:0, border:`2px solid ${checked ? "#FFF" : INK}`, background: checked ? "#FFF" : "transparent", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                  {checked && <Check size={18} strokeWidth={3} color={GN}/>}
+                </span>
+                <span style={{ fontFamily:FBB, fontSize:22, letterSpacing:1 }}>SERIE {i + 1}</span>
+                <span style={{ marginLeft:"auto", fontSize:12, fontWeight:700, opacity:.8 }}>{ex.reps || ""}</span>
+              </button>
+            );
+          })}
+        </div>
+        <div style={{ display:"flex", gap:8 }}>
+          <button onClick={() => onSetCount(ex.id, count >= total ? 0 : total)} style={{ flex:1, minHeight:50, background: count >= total ? C1 : GN, border:`2px solid ${INK}`, boxShadow:SH_SM, color: count >= total ? TX : "#FFF", fontFamily:FD, fontWeight:800, fontSize:14, cursor:"pointer", textTransform:"uppercase", letterSpacing:.5 }}>
+            {count >= total ? "Reiniciar" : "Marcar todas"}
+          </button>
+          <button onClick={onClose} style={{ flex:1, minHeight:50, background:INK, border:`2px solid ${INK}`, color:"#FFF", fontFamily:FD, fontWeight:800, fontSize:14, cursor:"pointer", textTransform:"uppercase", letterSpacing:.5 }}>Listo</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── ADD EXERCISE FORM ─────────────────────────────────────────────────────
-function AddExForm({ sessionId, c1, c2, onAdd, onCancel }) {
+function AddExForm({ sessionId, accent, onAdd, onCancel }) {
   const [name, setName] = useState("");
   const [type, setType] = useState("strength");
   const [sets, setSets] = useState("3");
   const [reps, setReps] = useState("10");
   const [tgt,  setTgt ] = useState("");
-  const inp = { fontFamily:FD, fontSize:13, background:C3, border:`1px solid ${BR}`, borderRadius:6, padding:"8px 10px", color:TX, width:"100%" };
+  const inp = { fontFamily:FD, fontSize:14, background:C1, border:`2px solid ${INK}`, borderRadius:0, padding:"11px 12px", color:TX, width:"100%" };
+  const lbl = { fontSize:10, color:TX2, fontWeight:700, letterSpacing:1, textTransform:"uppercase", marginBottom:5 };
   const save = () => {
     if (!name.trim()) return;
     onAdd(sessionId, { id:`cx-${Date.now()}`, name:name.trim(), type, sets:parseInt(sets)||3, reps, target:tgt });
   };
   return (
-    <div style={{ background:C2, borderRadius:10, padding:14, marginBottom:8, border:`1px solid ${BR}` }}>
-      <div style={{ fontSize:9, color:MU, letterSpacing:1.5, marginBottom:10 }}>NUEVO EJERCICIO</div>
-      <div style={{ fontSize:9, color:TX2, marginBottom:4 }}>Nombre</div>
-      <input type="text" value={name} onChange={e=>setName(e.target.value)} placeholder="Ej: Leg Extension" style={{ ...inp, marginBottom:10 }}/>
-      <div style={{ display:"flex", gap:6, marginBottom:10 }}>
-        {["strength","cardio","plyo"].map(t => (
+    <div style={{ background:C2, border:`2px solid ${INK}`, boxShadow:SH, padding:16, marginBottom:10 }}>
+      <div style={{ fontSize:11, color:TX, fontWeight:800, letterSpacing:1.5, marginBottom:12, textTransform:"uppercase" }}>Nuevo ejercicio</div>
+      <div style={lbl}>Nombre</div>
+      <input type="text" value={name} onChange={e=>setName(e.target.value)} placeholder="Ej: Leg Extension" style={{ ...inp, marginBottom:12 }}/>
+      <div style={{ display:"flex", gap:6, marginBottom:12, flexWrap:"wrap" }}>
+        {["strength","warmup","cardio","plyo"].map(t => (
           <button key={t} onClick={() => setType(t)}
-            style={{ flex:1, background:type===t?T_CLR[t]:"transparent", border:`1.5px solid ${type===t?T_CLR[t]:BR}`, borderRadius:20, color:type===t?"#000":TX2, fontFamily:FD, fontSize:9, fontWeight:600, padding:"6px 4px", cursor:"pointer" }}>
+            style={{ flex:"1 1 40%", minHeight:42, background:type===t?T_CLR[t]:C1, border:`2px solid ${INK}`, boxShadow:type===t?"none":SH_SM, color:type===t?"#FFF":TX, fontFamily:FD, fontSize:12, fontWeight:700, padding:"8px 4px", cursor:"pointer" }}>
             {T_LBL[t]}
           </button>
         ))}
       </div>
       {type !== "cardio" && (
-        <div style={{ display:"flex", gap:8, marginBottom:10 }}>
+        <div style={{ display:"flex", gap:8, marginBottom:12 }}>
           <div style={{ flex:1 }}>
-            <div style={{ fontSize:9, color:TX2, marginBottom:4 }}>Series</div>
+            <div style={lbl}>Series</div>
             <input type="number" value={sets} onChange={e=>setSets(e.target.value)} style={inp}/>
           </div>
           <div style={{ flex:2 }}>
-            <div style={{ fontSize:9, color:TX2, marginBottom:4 }}>Reps</div>
+            <div style={lbl}>Reps</div>
             <input type="text" value={reps} onChange={e=>setReps(e.target.value)} style={inp}/>
           </div>
         </div>
       )}
-      <div style={{ fontSize:9, color:TX2, marginBottom:4 }}>Objetivo / Peso</div>
-      <input type="text" value={tgt} onChange={e=>setTgt(e.target.value)} placeholder="Ej: 20 kg" style={{ ...inp, marginBottom:12 }}/>
+      <div style={lbl}>Objetivo / Peso</div>
+      <input type="text" value={tgt} onChange={e=>setTgt(e.target.value)} placeholder="Ej: 20 kg" style={{ ...inp, marginBottom:14 }}/>
       <div style={{ display:"flex", gap:8 }}>
-        <button onClick={save} style={{ flex:2, background:`linear-gradient(135deg,${c1},${c2})`, border:"none", borderRadius:7, color:TX, fontFamily:FD, fontWeight:700, fontSize:12, padding:9, cursor:"pointer" }}>Agregar</button>
-        <button onClick={onCancel} style={{ flex:1, background:C3, border:`1px solid ${BR}`, borderRadius:7, color:TX2, fontFamily:FD, fontSize:11, padding:9, cursor:"pointer" }}>Cancelar</button>
+        <button onClick={save} style={{ flex:2, minHeight:48, background:accent, border:`2px solid ${INK}`, boxShadow:SH_SM, color:"#FFF", fontFamily:FD, fontWeight:800, fontSize:14, cursor:"pointer", textTransform:"uppercase", letterSpacing:.5 }}>Agregar</button>
+        <button onClick={onCancel} style={{ flex:1, minHeight:48, background:C1, border:`2px solid ${INK}`, color:TX, fontFamily:FD, fontSize:13, fontWeight:700, cursor:"pointer" }}>Cancelar</button>
       </div>
     </div>
   );
 }
 
 // ── EXERCISE CARD ─────────────────────────────────────────────────────────
-function ExCard({ ex, done, c1, c2, onToggle, isEdited, onSaveOverride, onDelete, onMove, isFirst, isLast }) {
+function ExCard({ ex, setDone, c1, onSetCount, isEdited, onSaveOverride, onDelete, onMove, isFirst, isLast }) {
   const [editing, setEditing] = useState(false);
   const [delCfm,  setDelCfm ] = useState(false);
+  const [sheet,   setSheet  ] = useState(false);
+  const [fName,   setFName  ] = useState(ex.name || "");
   const [fSets,   setFSets  ] = useState(String(ex.sets || ""));
   const [fReps,   setFReps  ] = useState(ex.reps || "");
   const [fTarget, setFTarget] = useState(ex.target || "");
 
+  const total = exTotalSets(ex);
+  const done  = setDone >= total;
+  const hasSets = total > 1;
+
   useEffect(() => {
-    if (!editing) { setFSets(String(ex.sets||"")); setFReps(ex.reps||""); setFTarget(ex.target||""); }
-  }, [ex.reps, ex.sets, ex.target, editing]);
+    if (!editing) { setFName(ex.name||""); setFSets(String(ex.sets||"")); setFReps(ex.reps||""); setFTarget(ex.target||""); }
+  }, [ex.name, ex.reps, ex.sets, ex.target, editing]);
 
   const save = () => {
     const f = { target: fTarget };
+    if (fName.trim()) f.name = fName.trim();
     if (ex.type !== "cardio") { f.sets = parseInt(fSets) || ex.sets; f.reps = fReps; }
     onSaveOverride(ex.id, f); setEditing(false);
   };
   const tclr = T_CLR[ex.type] || T_CLR.strength;
-  const moveStyle = disabled => ({ background:"none", border:"none", cursor:disabled?"default":"pointer", color:disabled?C3:MU, padding:3, display:"flex" });
+  const moveStyle = disabled => ({ background:"none", border:"none", cursor:disabled?"default":"pointer", color:disabled?C3:TX2, padding:5, display:"flex" });
+  const inp = { fontFamily:FD, fontSize:14, fontWeight:600, background:C1, border:`2px solid ${INK}`, borderRadius:0, padding:"10px 12px", color:TX, width:"100%" };
+  const lbl = { fontSize:10, color:TX2, fontWeight:700, letterSpacing:1, marginBottom:5, textTransform:"uppercase" };
+
+  const openMain = () => { if (editing || delCfm) return; if (hasSets) setSheet(true); else onSetCount(ex.id, done ? 0 : 1); };
 
   return (
-    <div style={{ background:done?"rgba(0,208,132,0.05)":C1, borderRadius:10, marginBottom:8, overflow:"hidden", transition:"background .2s" }}>
+    <div style={{ background:done?"#E3EFE3":C1, border:`2px solid ${INK}`, boxShadow:done?"none":SH, marginBottom:10, overflow:"hidden" }}>
       {delCfm && (
-        <div style={{ background:"rgba(220,38,38,0.12)", padding:"9px 14px", display:"flex", justifyContent:"space-between", alignItems:"center", borderBottom:`1px solid rgba(220,38,38,0.25)` }}>
-          <span style={{ fontSize:11, color:"#FCA5A5" }}>¿Borrar este ejercicio?</span>
+        <div style={{ background:"#F2C8C2", padding:"10px 14px", display:"flex", justifyContent:"space-between", alignItems:"center", borderBottom:`2px solid ${INK}` }}>
+          <span style={{ fontSize:12, color:INK, fontWeight:700 }}>¿Borrar este ejercicio?</span>
           <div style={{ display:"flex", gap:8 }}>
-            <button onClick={onDelete} style={{ background:"#DC2626", border:"none", borderRadius:5, color:TX, fontSize:10, fontWeight:700, padding:"4px 12px", cursor:"pointer" }}>Sí</button>
-            <button onClick={() => setDelCfm(false)} style={{ background:C3, border:`1px solid ${BR}`, borderRadius:5, color:TX2, fontSize:10, padding:"4px 12px", cursor:"pointer" }}>No</button>
+            <button onClick={onDelete} style={{ background:"#C0392B", border:`2px solid ${INK}`, color:"#FFF", fontSize:12, fontWeight:800, padding:"6px 14px", cursor:"pointer" }}>Sí</button>
+            <button onClick={() => setDelCfm(false)} style={{ background:C1, border:`2px solid ${INK}`, color:TX, fontSize:12, fontWeight:700, padding:"6px 14px", cursor:"pointer" }}>No</button>
           </div>
         </div>
       )}
       <div style={{ display:"flex" }}>
-        <div style={{ width:3, background:done?GN:tclr, flexShrink:0, transition:"background .2s" }}/>
-        <div style={{ flex:1, padding:"12px 12px 12px 14px" }}>
+        <div style={{ width:8, background:done?GN:tclr, flexShrink:0, borderRight:`2px solid ${INK}` }}/>
+        <div style={{ flex:1, padding:"14px 12px 14px 14px" }}>
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
-            <div style={{ flex:1, paddingRight:8 }}>
-              <div style={{ fontSize:13, fontWeight:600, color:done?TX2:TX, textDecoration:done?"line-through":"none", lineHeight:1.3, transition:"color .2s" }}>{ex.name}</div>
+            <div onClick={openMain} style={{ flex:1, paddingRight:8, cursor: editing ? "default" : "pointer" }}>
+              <div style={{ fontSize:15, fontWeight:800, color:done?TX2:TX, textDecoration:done?"line-through":"none", lineHeight:1.25 }}>{ex.name}</div>
               {!editing && <>
-                <div style={{ display:"flex", gap:5, marginTop:6, flexWrap:"wrap", alignItems:"center" }}>
-                  <span style={{ fontSize:9, fontWeight:700, color:tclr, letterSpacing:0.5 }}>{T_LBL[ex.type] || "Fuerza"}</span>
-                  {ex.sets && <><span style={{ color:MU, fontSize:9 }}>·</span><span style={{ fontSize:10, color:TX2 }}>{ex.sets}×</span></>}
-                  {ex.reps && <><span style={{ color:MU, fontSize:9 }}>·</span><span style={{ fontSize:10, color:TX2 }}>{ex.reps}</span></>}
-                  {ex.note && <span style={{ fontSize:8, color:c1, border:`1px solid ${c1}`, borderRadius:10, padding:"1px 6px" }}>{ex.note}</span>}
-                  {isEdited && <span style={{ fontSize:8, color:c1, opacity:.7 }}>editado</span>}
+                <div style={{ display:"flex", gap:6, marginTop:7, flexWrap:"wrap", alignItems:"center" }}>
+                  <span style={{ fontSize:10, fontWeight:800, color:"#FFF", background:tclr, border:`2px solid ${INK}`, padding:"1px 7px", letterSpacing:.5, textTransform:"uppercase" }}>{T_LBL[ex.type] || "Fuerza"}</span>
+                  {ex.sets && <span style={{ fontSize:11, color:TX, fontWeight:700 }}>{ex.sets}×</span>}
+                  {ex.reps && <span style={{ fontSize:11, color:TX2, fontWeight:600 }}>{ex.reps}</span>}
+                  {ex.note && <span style={{ fontSize:9, fontWeight:700, color:TX, border:`2px solid ${INK}`, padding:"1px 6px" }}>{ex.note}</span>}
+                  {isEdited && <span style={{ fontSize:9, fontWeight:700, color:c1 }}>editado</span>}
                 </div>
-                <div style={{ fontSize:10, color:TX2, marginTop:6 }}>→ {ex.target}</div>
-                {ex.sets && <div style={{ display:"flex", gap:3, marginTop:8 }}>
-                  {Array.from({ length:Math.min(ex.sets, 8) }).map((_,i) => (
-                    <div key={i} style={{ width:7, height:7, borderRadius:"50%", background:done?GN:tclr, opacity:done?.7:.35, transition:`all .3s ${i*0.04}s` }}/>
+                <div style={{ fontSize:11, color:TX2, marginTop:7, fontWeight:600 }}>→ {ex.target}</div>
+                {hasSets && <div style={{ display:"flex", gap:4, marginTop:9 }}>
+                  {Array.from({ length:Math.min(total, 10) }).map((_,i) => (
+                    <div key={i} style={{ width:14, height:9, border:`2px solid ${INK}`, background: setDone > i ? (done?GN:tclr) : "transparent" }}/>
                   ))}
+                  <span style={{ fontSize:10, fontWeight:800, color:TX, marginLeft:4 }}>{setDone}/{total}</span>
                 </div>}
               </>}
             </div>
-            <div style={{ display:"flex", gap:6, alignItems:"center", flexShrink:0 }}>
+            <div style={{ display:"flex", gap:4, alignItems:"center", flexShrink:0 }}>
               {!editing && <>
-                <button aria-label="Subir ejercicio" title="Subir ejercicio" disabled={isFirst} onClick={()=>onMove(-1)} style={moveStyle(isFirst)}><ChevronUp size={14}/></button>
-                <button aria-label="Bajar ejercicio" title="Bajar ejercicio" disabled={isLast} onClick={()=>onMove(1)} style={moveStyle(isLast)}><ChevronDown size={14}/></button>
+                <button aria-label="Subir ejercicio" title="Subir ejercicio" disabled={isFirst} onClick={()=>onMove(-1)} style={moveStyle(isFirst)}><ChevronUp size={16}/></button>
+                <button aria-label="Bajar ejercicio" title="Bajar ejercicio" disabled={isLast} onClick={()=>onMove(1)} style={moveStyle(isLast)}><ChevronDown size={16}/></button>
               </>}
-              {!editing && <button onClick={() => { setDelCfm(!delCfm); }} style={{ background:"none", border:"none", cursor:"pointer", color:delCfm?"#FCA5A5":MU, padding:4, display:"flex" }}><Trash2 size={13}/></button>}
-              <button onClick={() => { setEditing(!editing); setDelCfm(false); }} style={{ background:"none", border:"none", cursor:"pointer", color:editing?c1:MU, padding:4, display:"flex" }}>
-                {editing ? <X size={15}/> : <Pencil size={13}/>}
+              {!editing && <button aria-label="Borrar" onClick={() => { setDelCfm(!delCfm); }} style={{ background:"none", border:"none", cursor:"pointer", color:delCfm?"#C0392B":TX2, padding:6, display:"flex" }}><Trash2 size={16}/></button>}
+              <button aria-label={editing?"Cancelar edición":"Editar"} onClick={() => { setEditing(!editing); setDelCfm(false); }} style={{ background:"none", border:"none", cursor:"pointer", color:editing?c1:TX2, padding:6, display:"flex" }}>
+                {editing ? <X size={18}/> : <Pencil size={16}/>}
               </button>
-              <button onClick={onToggle} style={{ width:32, height:32, borderRadius:"50%", background:done?GN:"transparent", border:`2px solid ${done?GN:BR}`, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:done?"#000":MU, transition:"all .2s" }}>
-                {done ? <Check size={14} strokeWidth={3}/> : <div style={{ width:8, height:8, borderRadius:"50%", background:BR }}/>}
+              <button aria-label={done?"Marcar como pendiente":"Completar"} onClick={openMain} style={{ width:48, height:48, flexShrink:0, background:done?GN:C1, border:`2px solid ${INK}`, boxShadow:done?"none":SH_SM, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:done?"#FFF":TX }}>
+                {done ? <Check size={22} strokeWidth={3}/> : (hasSets ? <span style={{ fontFamily:FBB, fontSize:18, letterSpacing:.5 }}>{setDone}/{total}</span> : <div style={{ width:12, height:12, border:`2px solid ${INK}` }}/>)}
               </button>
             </div>
           </div>
           {editing && (
-            <div style={{ marginTop:12, borderTop:`1px solid ${BR}`, paddingTop:12 }}>
+            <div style={{ marginTop:12, borderTop:`2px solid ${INK}`, paddingTop:12 }}>
+              <div style={{ marginBottom:10 }}>
+                <div style={lbl}>Nombre</div>
+                <input type="text" value={fName} onChange={e=>setFName(e.target.value)} style={inp}/>
+              </div>
               {ex.type !== "cardio" && (
                 <div style={{ display:"flex", gap:8, marginBottom:10 }}>
                   <div style={{ flex:1 }}>
-                    <div style={{ fontSize:9, color:MU, letterSpacing:1, marginBottom:4 }}>SERIES</div>
-                    <input type="number" value={fSets} onChange={e=>setFSets(e.target.value)} style={{ fontFamily:FD, fontSize:14, fontWeight:600, background:C2, border:`1px solid ${BR}`, borderRadius:6, padding:"8px 10px", color:TX, width:"100%" }}/>
+                    <div style={lbl}>Series</div>
+                    <input type="number" value={fSets} onChange={e=>setFSets(e.target.value)} style={inp}/>
                   </div>
                   <div style={{ flex:2 }}>
-                    <div style={{ fontSize:9, color:MU, letterSpacing:1, marginBottom:4 }}>REPS</div>
-                    <input type="text" value={fReps} onChange={e=>setFReps(e.target.value)} style={{ fontFamily:FD, fontSize:14, fontWeight:600, background:C2, border:`1px solid ${BR}`, borderRadius:6, padding:"8px 10px", color:TX, width:"100%" }}/>
+                    <div style={lbl}>Reps</div>
+                    <input type="text" value={fReps} onChange={e=>setFReps(e.target.value)} style={inp}/>
                   </div>
                 </div>
               )}
               <div style={{ marginBottom:12 }}>
-                <div style={{ fontSize:9, color:MU, letterSpacing:1, marginBottom:4 }}>OBJETIVO / PESO</div>
-                <input type="text" value={fTarget} onChange={e=>setFTarget(e.target.value)} style={{ fontFamily:FD, fontSize:13, background:C2, border:`1px solid ${BR}`, borderRadius:6, padding:"8px 10px", color:TX, width:"100%" }}/>
+                <div style={lbl}>Objetivo / Peso</div>
+                <input type="text" value={fTarget} onChange={e=>setFTarget(e.target.value)} style={inp}/>
               </div>
               <div style={{ display:"flex", gap:8 }}>
-                <button onClick={save} style={{ flex:2, background:`linear-gradient(135deg,${c1},${c2})`, border:"none", borderRadius:7, color:TX, fontFamily:FD, fontWeight:700, fontSize:12, padding:9, cursor:"pointer" }}>Guardar</button>
-                {isEdited && <button onClick={() => { onSaveOverride(ex.id, null); setEditing(false); }} style={{ flex:1, background:C2, border:`1px solid ${BR}`, borderRadius:7, color:TX2, fontFamily:FD, fontSize:11, padding:9, cursor:"pointer" }}>Reset</button>}
+                <button onClick={save} style={{ flex:2, minHeight:46, background:c1, border:`2px solid ${INK}`, boxShadow:SH_SM, color:"#FFF", fontFamily:FD, fontWeight:800, fontSize:14, cursor:"pointer", textTransform:"uppercase", letterSpacing:.5 }}>Guardar</button>
+                {isEdited && <button onClick={() => { onSaveOverride(ex.id, null); setEditing(false); }} style={{ flex:1, minHeight:46, background:C1, border:`2px solid ${INK}`, color:TX, fontFamily:FD, fontSize:13, fontWeight:700, cursor:"pointer" }}>Reset</button>}
               </div>
             </div>
           )}
         </div>
       </div>
+      {sheet && <SetSheet ex={ex} total={total} count={setDone} accent={c1} onSetCount={onSetCount} onClose={()=>setSheet(false)}/>}
     </div>
   );
 }
 
 // ── SESSION VIEW ──────────────────────────────────────────────────────────
-function SessionView({ session, done, sessionExercises, onSaveOverride, onToggle, onAddEx, onDeleteEx, onMoveEx }) {
+function SessionView({ session, done, setProgress, sessionExercises, onSaveOverride, onSetCount, onAddEx, onDeleteEx, onMoveEx }) {
   const [showAdd, setShowAdd] = useState(false);
   const { items } = resolveSession(session, sessionExercises[session.id]);
-  const { dn, tot, pct } = sessProgress(session, done, sessionExercises);
+  const { dn, tot, pct } = sessProgress(session, setProgress, sessionExercises);
   const totalSets = items.reduce((a,e)=>a+(e.sets||0),0);
   const overrides = sessionExercises[session.id]?.overrides || {};
   return (
     <div>
-      <div style={{ background:`linear-gradient(135deg,${session.c1},${session.c2})`, padding:"28px 20px 24px", position:"relative", overflow:"hidden" }}>
-        <div style={{ position:"absolute", inset:0, background:"rgba(0,0,0,0.15)" }}/>
-        <div style={{ position:"relative", display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
+      <div style={{ background:session.c1, padding:"24px 18px", margin:"14px 14px 0", border:`3px solid ${INK}`, boxShadow:SH, color:"#FFF" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
           <div>
-            <div style={{ fontFamily:FBB, fontSize:52, letterSpacing:4, lineHeight:0.9, textShadow:"0 2px 12px rgba(0,0,0,0.3)" }}>{session.label}</div>
-            <div style={{ fontSize:12, marginTop:10, opacity:.8 }}>{session.sub}</div>
+            <div style={{ fontFamily:FBB, fontSize:52, letterSpacing:3, lineHeight:0.9 }}>{session.label}</div>
+            <div style={{ fontSize:13, marginTop:8, fontWeight:700, textTransform:"uppercase", letterSpacing:1 }}>{session.sub}</div>
           </div>
-          <div style={{ position:"relative", width:58, height:58, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-            <Ring pct={pct} c1="#FFF" c2="#FFF" size={58} thick={3}/>
+          <div style={{ position:"relative", width:60, height:60, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+            <Ring pct={pct} color="#FFF" size={60} thick={5}/>
             <div style={{ position:"absolute", textAlign:"center" }}>
-              {pct===100 ? <Check size={17} strokeWidth={3}/> : <><div style={{ fontFamily:FBB, fontSize:17, lineHeight:1 }}>{pct}</div><div style={{ fontSize:7, opacity:.7 }}>%</div></>}
+              {pct===100 ? <Check size={20} strokeWidth={3}/> : <div style={{ fontFamily:FBB, fontSize:20, lineHeight:1 }}>{pct}<span style={{ fontSize:9 }}>%</span></div>}
             </div>
           </div>
         </div>
-        <div style={{ display:"flex", marginTop:20, background:"rgba(0,0,0,0.2)", borderRadius:8, overflow:"hidden" }}>
-          {[{v:`${dn}/${tot}`,l:"ejercicios"},{v:String(totalSets||"—"),l:"series"},{v:pct===100?"LISTO":`${tot-dn} left`,l:pct===100?"":"restantes"}].map((s,i)=>(
-            <div key={i} style={{ flex:1, padding:"10px 0", textAlign:"center", borderRight:i<2?`1px solid rgba(255,255,255,0.15)`:"none" }}>
-              <div style={{ fontFamily:FBB, fontSize:20, letterSpacing:1, lineHeight:1 }}>{s.v}</div>
-              <div style={{ fontSize:9, opacity:.6, marginTop:3 }}>{s.l}</div>
+        <div style={{ display:"flex", marginTop:18, border:`2px solid ${INK}` }}>
+          {[{v:`${dn}/${tot}`,l:"ejercicios"},{v:String(totalSets||"—"),l:"series"},{v:pct===100?"LISTO":`${tot-dn}`,l:pct===100?"":"restantes"}].map((s,i)=>(
+            <div key={i} style={{ flex:1, padding:"10px 0", textAlign:"center", borderRight:i<2?`2px solid ${INK}`:"none", background:"rgba(22,20,15,0.18)" }}>
+              <div style={{ fontFamily:FBB, fontSize:22, letterSpacing:1, lineHeight:1 }}>{s.v}</div>
+              <div style={{ fontSize:9, fontWeight:700, opacity:.85, marginTop:3, textTransform:"uppercase" }}>{s.l}</div>
             </div>
           ))}
         </div>
       </div>
-      <div style={{ padding:"12px 14px" }}>
-        {session.sessionNote && <div style={{ fontSize:10, color:TX2, background:C2, borderRadius:8, padding:"8px 12px", marginBottom:10, borderLeft:`3px solid ${session.c1}` }}>{session.sessionNote}</div>}
-        {session.anyOne && <div style={{ fontSize:10, color:MU, background:C1, borderRadius:8, padding:"8px 12px", marginBottom:10 }}>Elige <strong style={{ color:TX2 }}>cualquiera</strong> de las opciones</div>}
-        {items.map((ex, index) => <ExCard key={ex.id} ex={ex} done={!!done[ex.id]} c1={session.c1} c2={session.c2} onToggle={()=>onToggle(ex.id)} isEdited={!!overrides[ex.id]} onSaveOverride={(id,fields)=>onSaveOverride(session.id,id,fields)} onDelete={()=>onDeleteEx(session.id,ex.id)} onMove={dir=>onMoveEx(session.id,ex.id,dir)} isFirst={index===0} isLast={index===items.length-1}/>)}
+      <div style={{ padding:"14px" }}>
+        {session.sessionNote && <div style={{ fontSize:11, color:TX, fontWeight:600, background:C2, border:`2px solid ${INK}`, padding:"9px 12px", marginBottom:10, borderLeft:`8px solid ${session.c1}` }}>{session.sessionNote}</div>}
+        {session.anyOne && <div style={{ fontSize:11, color:TX, background:C2, border:`2px solid ${INK}`, padding:"9px 12px", marginBottom:10 }}>Elige <strong>cualquiera</strong> de las opciones</div>}
+        {items.map((ex, index) => <ExCard key={ex.id} ex={ex} setDone={setProgress[ex.id]||0} c1={session.c1} onSetCount={onSetCount} isEdited={!!overrides[ex.id]} onSaveOverride={(id,fields)=>onSaveOverride(session.id,id,fields)} onDelete={()=>onDeleteEx(session.id,ex.id)} onMove={dir=>onMoveEx(session.id,ex.id,dir)} isFirst={index===0} isLast={index===items.length-1}/>)}
         {showAdd
-          ? <AddExForm sessionId={session.id} c1={session.c1} c2={session.c2} onAdd={(sid,ex)=>{ onAddEx(sid,ex); setShowAdd(false); }} onCancel={()=>setShowAdd(false)}/>
-          : <button onClick={()=>setShowAdd(true)} style={{ width:"100%", background:"transparent", border:`1.5px dashed ${BR}`, borderRadius:10, color:MU, fontFamily:FD, fontSize:12, fontWeight:600, padding:12, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
-              <Plus size={14}/> Agregar ejercicio
+          ? <AddExForm sessionId={session.id} accent={session.c1} onAdd={(sid,ex)=>{ onAddEx(sid,ex); setShowAdd(false); }} onCancel={()=>setShowAdd(false)}/>
+          : <button onClick={()=>setShowAdd(true)} style={{ width:"100%", minHeight:52, background:C1, border:`2px dashed ${INK}`, color:TX, fontFamily:FD, fontSize:14, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
+              <Plus size={18}/> Agregar ejercicio
             </button>
         }
       </div>
@@ -359,32 +428,32 @@ function SessionView({ session, done, sessionExercises, onSaveOverride, onToggle
 }
 
 // ── HOY ───────────────────────────────────────────────────────────────────
-function HoyView({ today, sessions, done, onToggle, sessionExercises, onSaveOverride, onAddEx, onDeleteEx, onMoveEx }) {
+function HoyView({ today, sessions, sessionExercises, ...sp }) {
   const session = sessions.find(s => s.day === today);
   if (!session) {
     const next = (() => { for(let i=1;i<=7;i++){const d=(today+i)%7;const s=sessions.find(x=>x.day===d);if(s)return{s,n:DAY_F[d]};} return null; })();
     return (
-      <div style={{ padding:"30px 18px" }}>
-        <div style={{ textAlign:"center", marginBottom:28 }}>
-          <div style={{ fontFamily:FBB, fontSize:60, letterSpacing:5, color:C3, lineHeight:1 }}>DESCANSO</div>
-          <div style={{ fontSize:12, color:MU, marginTop:8 }}>{DAY_F[today]}</div>
+      <div style={{ padding:"24px 16px" }}>
+        <div style={{ textAlign:"center", marginBottom:24 }}>
+          <div style={{ fontFamily:FBB, fontSize:64, letterSpacing:5, color:TX, lineHeight:1 }}>DESCANSO</div>
+          <div style={{ fontSize:13, color:TX2, marginTop:6, fontWeight:700, textTransform:"uppercase" }}>{DAY_F[today]}</div>
         </div>
-        {next && <div style={{ background:C1, borderRadius:12, overflow:"hidden", marginBottom:12 }}>
-          <div style={{ height:2, background:`linear-gradient(90deg,${next.s.c1},${next.s.c2})` }}/>
+        {next && <div style={{ background:C1, border:`2px solid ${INK}`, boxShadow:SH, marginBottom:12 }}>
+          <div style={{ height:8, background:next.s.c1, borderBottom:`2px solid ${INK}` }}/>
           <div style={{ padding:"14px 16px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
             <div>
-              <div style={{ fontSize:9, color:MU, letterSpacing:1.5, marginBottom:5 }}>PRÓXIMA SESIÓN</div>
-              <div style={{ fontFamily:FBB, fontSize:24, letterSpacing:2 }}>{next.s.label}</div>
-              <div style={{ fontSize:11, color:TX2, marginTop:3 }}>{next.n} · {next.s.sub}</div>
+              <div style={{ fontSize:10, color:TX2, fontWeight:700, letterSpacing:1.5, marginBottom:5, textTransform:"uppercase" }}>Próxima sesión</div>
+              <div style={{ fontFamily:FBB, fontSize:26, letterSpacing:2 }}>{next.s.label}</div>
+              <div style={{ fontSize:12, color:TX2, marginTop:3, fontWeight:600 }}>{next.n} · {next.s.sub}</div>
             </div>
-            <div style={{ fontSize:11, color:TX2 }}>{resolveSession(next.s, sessionExercises[next.s.id]).items.length} ej.</div>
+            <div style={{ fontSize:12, color:TX, fontWeight:700 }}>{resolveSession(next.s, sessionExercises[next.s.id]).items.length} ej.</div>
           </div>
         </div>}
-        <div style={{ background:C1, borderRadius:12, padding:"14px 16px" }}>
-          <div style={{ fontSize:9, color:MU, letterSpacing:1.5, marginBottom:12 }}>RECUPERACIÓN</div>
+        <div style={{ background:C1, border:`2px solid ${INK}`, boxShadow:SH, padding:"14px 16px" }}>
+          <div style={{ fontSize:10, color:TX2, fontWeight:700, letterSpacing:1.5, marginBottom:12, textTransform:"uppercase" }}>Recuperación</div>
           {["1.8–2g proteína / kg peso","7–9 horas de sueño","35 ml agua × kg peso","20 min caminata si aplica"].map((t,i) => (
-            <div key={i} style={{ fontSize:12, color:TX2, padding:"7px 0", borderTop:i>0?`1px solid ${BR}`:"none", display:"flex", gap:10, alignItems:"center" }}>
-              <span style={{ color:GN, fontSize:9 }}>→</span>{t}
+            <div key={i} style={{ fontSize:13, color:TX, fontWeight:600, padding:"8px 0", borderTop:i>0?`2px solid ${INK}`:"none", display:"flex", gap:10, alignItems:"center" }}>
+              <span style={{ color:GN, fontWeight:800 }}>→</span>{t}
             </div>
           ))}
         </div>
@@ -393,62 +462,62 @@ function HoyView({ today, sessions, done, onToggle, sessionExercises, onSaveOver
   }
   return (
     <div>
-      <div style={{ fontSize:10, color:MU, padding:"10px 18px 0" }}>{DAY_F[today]}</div>
-      <SessionView session={session} done={done} sessionExercises={sessionExercises} onSaveOverride={onSaveOverride} onToggle={onToggle} onAddEx={onAddEx} onDeleteEx={onDeleteEx} onMoveEx={onMoveEx}/>
+      <div style={{ fontSize:11, color:TX2, fontWeight:700, padding:"12px 18px 0", textTransform:"uppercase", letterSpacing:1 }}>{DAY_F[today]}</div>
+      <SessionView session={session} sessionExercises={sessionExercises} {...sp}/>
     </div>
   );
 }
 
 // ── SEMANA ────────────────────────────────────────────────────────────────
-function SemanaView({ sessions, done, onToggle, sessionExercises, onSaveOverride, onAddEx, onDeleteEx, onMoveEx, semId, setSemId }) {
+function SemanaView({ sessions, done, setProgress, sessionExercises, semId, setSemId, ...sp }) {
   const idx = semId ? sessions.findIndex(s => s.id === semId) : -1;
   const session = idx >= 0 ? sessions[idx] : null;
   if (session) {
     const prev = idx > 0 ? sessions[idx-1] : null, next = idx < sessions.length-1 ? sessions[idx+1] : null;
     return (
       <div>
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"10px 14px 0" }}>
-          <button onClick={()=>setSemId(prev?prev.id:null)} style={{ display:"flex", alignItems:"center", gap:4, background:"none", border:"none", color:TX2, cursor:"pointer", fontFamily:FD, fontSize:12, fontWeight:500, padding:0 }}>
-            <ChevronLeft size={14}/>{prev ? prev.label : "Semana"}
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"12px 14px 0" }}>
+          <button onClick={()=>setSemId(prev?prev.id:null)} style={{ display:"flex", alignItems:"center", gap:4, background:C1, border:`2px solid ${INK}`, boxShadow:SH_SM, color:TX, cursor:"pointer", fontFamily:FD, fontSize:13, fontWeight:700, padding:"8px 12px", minHeight:42 }}>
+            <ChevronLeft size={16}/>{prev ? prev.label : "Semana"}
           </button>
-          {next && <button onClick={()=>setSemId(next.id)} style={{ display:"flex", alignItems:"center", gap:4, background:"none", border:"none", color:TX2, cursor:"pointer", fontFamily:FD, fontSize:12, fontWeight:500, padding:0 }}>
-            {next.label}<ChevronRight size={14}/>
+          {next && <button onClick={()=>setSemId(next.id)} style={{ display:"flex", alignItems:"center", gap:4, background:C1, border:`2px solid ${INK}`, boxShadow:SH_SM, color:TX, cursor:"pointer", fontFamily:FD, fontSize:13, fontWeight:700, padding:"8px 12px", minHeight:42 }}>
+            {next.label}<ChevronRight size={16}/>
           </button>}
         </div>
-        <SessionView session={session} done={done} sessionExercises={sessionExercises} onSaveOverride={onSaveOverride} onToggle={onToggle} onAddEx={onAddEx} onDeleteEx={onDeleteEx} onMoveEx={onMoveEx}/>
+        <SessionView session={session} done={done} setProgress={setProgress} sessionExercises={sessionExercises} {...sp}/>
       </div>
     );
   }
   return (
     <div style={{ padding:14 }}>
-      <div style={{ fontSize:10, color:MU, letterSpacing:1, marginBottom:12 }}>SEMANA COMPLETA</div>
+      <div style={{ fontSize:11, color:TX2, fontWeight:700, letterSpacing:1, marginBottom:12, textTransform:"uppercase" }}>Semana completa</div>
       {sessions.map(s => {
-        const { pct } = sessProgress(s, done, sessionExercises);
+        const { pct } = sessProgress(s, setProgress, sessionExercises);
         const { items } = resolveSession(s, sessionExercises[s.id]);
         return (
-          <div key={s.id} onClick={()=>setSemId(s.id)} style={{ background:C1, borderRadius:12, marginBottom:8, overflow:"hidden", cursor:"pointer", display:"flex" }}>
-            <div style={{ width:5, background:`linear-gradient(180deg,${s.c1},${s.c2})`, flexShrink:0 }}/>
+          <div key={s.id} onClick={()=>setSemId(s.id)} style={{ background:C1, border:`2px solid ${INK}`, boxShadow:SH, marginBottom:10, overflow:"hidden", cursor:"pointer", display:"flex" }}>
+            <div style={{ width:10, background:s.c1, flexShrink:0, borderRight:`2px solid ${INK}` }}/>
             <div style={{ flex:1, padding:"14px 14px 14px 16px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
               <div>
                 <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
-                  <div style={{ fontFamily:FBB, fontSize:22, letterSpacing:2, lineHeight:1 }}>{s.label}</div>
-                  {pct===100 && <div style={{ background:GN, color:"#000", fontSize:8, fontWeight:700, padding:"2px 7px", borderRadius:20 }}>LISTO</div>}
+                  <div style={{ fontFamily:FBB, fontSize:24, letterSpacing:2, lineHeight:1 }}>{s.label}</div>
+                  {pct===100 && <div style={{ background:GN, color:"#FFF", fontSize:9, fontWeight:800, padding:"2px 8px", border:`2px solid ${INK}` }}>LISTO</div>}
                 </div>
-                <div style={{ fontSize:10, color:TX2 }}>{DAY_S[s.day]} · {s.sub}</div>
-                <div style={{ display:"flex", gap:3, marginTop:8 }}>
+                <div style={{ fontSize:11, color:TX2, fontWeight:600 }}>{DAY_S[s.day]} · {s.sub}</div>
+                <div style={{ display:"flex", gap:4, marginTop:9, flexWrap:"wrap" }}>
                   {items.map(e => (
-                    <div key={e.id} style={{ width:6, height:6, borderRadius:"50%", background:done[e.id]?GN:T_CLR[e.type]||T_CLR.strength, opacity:done[e.id]?1:.3, transition:"all .2s" }}/>
+                    <div key={e.id} style={{ width:12, height:8, border:`2px solid ${INK}`, background:isExDone(e, setProgress)?GN:"transparent" }}/>
                   ))}
                 </div>
               </div>
               <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                <div style={{ position:"relative", width:44, height:44, display:"flex", alignItems:"center", justifyContent:"center" }}>
-                  <Ring pct={pct} c1={s.c1} c2={s.c2} size={44} thick={3}/>
+                <div style={{ position:"relative", width:46, height:46, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                  <Ring pct={pct} color={s.c1} size={46} thick={4}/>
                   <div style={{ position:"absolute", textAlign:"center" }}>
-                    {pct===100 ? <Check size={13} color={GN} strokeWidth={3}/> : <div style={{ fontFamily:FBB, fontSize:12, color:TX }}>{pct}<span style={{ fontSize:7 }}>%</span></div>}
+                    {pct===100 ? <Check size={14} color={GN} strokeWidth={3}/> : <div style={{ fontFamily:FBB, fontSize:13, color:TX }}>{pct}<span style={{ fontSize:8 }}>%</span></div>}
                   </div>
                 </div>
-                <ChevronRight size={14} color={MU}/>
+                <ChevronRight size={18} color={TX}/>
               </div>
             </div>
           </div>
@@ -463,26 +532,27 @@ function CarrerasView({ runs, rkm, setRkm, rmin, setRmin, rsec, setRsec, rtype, 
   const [cfm, setCfm] = useState(false);
   const toS = s => { const [m,p]=s.split(":").map(Number); return m*60+p; };
   const best = runs.length ? runs.reduce((b,r) => toS(r.pace) < toS(b.pace) ? r : b) : null;
-  const inp = { fontFamily:FD, fontWeight:500, fontSize:16, border:`1px solid ${BR}`, borderRadius:8, padding:"11px 13px", background:C2, color:TX, width:"100%" };
+  const inp = { fontFamily:FD, fontWeight:600, fontSize:16, border:`2px solid ${INK}`, borderRadius:0, padding:"12px 13px", background:C1, color:TX, width:"100%" };
+  const lbl = { fontSize:11, color:TX2, fontWeight:700, marginBottom:6, textTransform:"uppercase", letterSpacing:.5 };
   return (
     <div style={{ padding:14 }}>
-      <div style={{ fontSize:10, color:MU, letterSpacing:1, marginBottom:12 }}>REGISTRO DE CARRERAS</div>
+      <div style={{ fontSize:11, color:TX2, fontWeight:700, letterSpacing:1, marginBottom:12, textTransform:"uppercase" }}>Registro de carreras</div>
       {best && (
-        <div style={{ background:C1, borderRadius:12, overflow:"hidden", marginBottom:12 }}>
-          <div style={{ height:2, background:`linear-gradient(90deg,${RUN_TYPES.find(t=>t.id===best.type)?.color||GN},${GN})` }}/>
+        <div style={{ background:C1, border:`2px solid ${INK}`, boxShadow:SH, marginBottom:12 }}>
+          <div style={{ height:8, background:GN, borderBottom:`2px solid ${INK}` }}/>
           <div style={{ padding:"14px 16px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
             <div>
-              <div style={{ fontSize:9, color:MU, letterSpacing:1.5, marginBottom:5 }}>MEJOR PACE</div>
-              <div style={{ fontFamily:FBB, fontSize:30, letterSpacing:2, color:GN, lineHeight:1 }}>{best.pace}<span style={{ fontSize:12, fontFamily:FD, color:TX2 }}> min/km</span></div>
-              <div style={{ fontSize:10, color:TX2, marginTop:4 }}>{best.km} km · {best.date}</div>
+              <div style={{ fontSize:10, color:TX2, fontWeight:700, letterSpacing:1.5, marginBottom:5, textTransform:"uppercase" }}>Mejor pace</div>
+              <div style={{ fontFamily:FBB, fontSize:32, letterSpacing:2, color:GN, lineHeight:1 }}>{best.pace}<span style={{ fontSize:13, fontFamily:FD, color:TX2 }}> min/km</span></div>
+              <div style={{ fontSize:11, color:TX2, marginTop:4, fontWeight:600 }}>{best.km} km · {best.date}</div>
             </div>
             <div style={{ textAlign:"right" }}>
-              <div style={{ fontFamily:FBB, fontSize:20, color:TX }}>{best.kmh}<span style={{ fontSize:11, fontFamily:FD, color:TX2 }}> km/h</span></div>
+              <div style={{ fontFamily:FBB, fontSize:22, color:TX }}>{best.kmh}<span style={{ fontSize:11, fontFamily:FD, color:TX2 }}> km/h</span></div>
               <div style={{ display:"flex", gap:8, marginTop:8, justifyContent:"flex-end" }}>
                 {[{d:5,l:"5K"},{d:10,l:"10K"},{d:21,l:"21K"}].map(r => (
                   <div key={r.d} style={{ textAlign:"center" }}>
-                    <div style={{ fontFamily:FBB, fontSize:14, color:r.d===21?GN:TX }}>{raceTime(best.pace, r.d)}</div>
-                    <div style={{ fontSize:8, color:MU }}>{r.l}</div>
+                    <div style={{ fontFamily:FBB, fontSize:15, color:r.d===21?GN:TX }}>{raceTime(best.pace, r.d)}</div>
+                    <div style={{ fontSize:9, color:TX2, fontWeight:600 }}>{r.l}</div>
                   </div>
                 ))}
               </div>
@@ -490,72 +560,72 @@ function CarrerasView({ runs, rkm, setRkm, rmin, setRmin, rsec, setRsec, rtype, 
           </div>
         </div>
       )}
-      <div style={{ background:C1, borderRadius:12, padding:16, marginBottom:12 }}>
-        <div style={{ fontSize:10, color:MU, letterSpacing:1.5, marginBottom:14 }}>NUEVA CARRERA</div>
-        <div style={{ fontSize:10, color:TX2, marginBottom:5 }}>Distancia (km)</div>
+      <div style={{ background:C1, border:`2px solid ${INK}`, boxShadow:SH, padding:16, marginBottom:12 }}>
+        <div style={{ fontSize:10, color:TX2, fontWeight:700, letterSpacing:1.5, marginBottom:14, textTransform:"uppercase" }}>Nueva carrera</div>
+        <div style={lbl}>Distancia (km)</div>
         <input type="number" value={rkm} onChange={e=>setRkm(e.target.value)} placeholder="5.0" step="0.1" style={inp}/>
-        <div style={{ fontSize:10, color:TX2, margin:"10px 0 5px" }}>Tiempo total</div>
+        <div style={{ ...lbl, margin:"12px 0 6px" }}>Tiempo total</div>
         <div style={{ display:"flex", gap:8, alignItems:"center" }}>
           <input type="number" value={rmin} onChange={e=>setRmin(e.target.value)} placeholder="min" style={{ ...inp, textAlign:"center" }}/>
-          <span style={{ color:MU, fontSize:20 }}>:</span>
+          <span style={{ color:TX, fontSize:22, fontWeight:800 }}>:</span>
           <input type="number" value={rsec} onChange={e=>setRsec(e.target.value)} placeholder="seg" style={{ ...inp, textAlign:"center" }}/>
         </div>
-        <button onClick={onCalc} style={{ background:"linear-gradient(135deg,#FF512F,#DD2476)", color:TX, border:"none", borderRadius:8, fontFamily:FD, fontWeight:700, fontSize:13, padding:13, cursor:"pointer", width:"100%", marginTop:10 }}>Calcular pace</button>
+        <button onClick={onCalc} style={{ background:"#FF512F", color:"#FFF", border:`2px solid ${INK}`, boxShadow:SH_SM, fontFamily:FD, fontWeight:800, fontSize:14, padding:14, cursor:"pointer", width:"100%", marginTop:12, textTransform:"uppercase", letterSpacing:.5 }}>Calcular pace</button>
         {pace && (
-          <div style={{ marginTop:10, background:C2, borderRadius:8, padding:"14px 16px" }}>
+          <div style={{ marginTop:12, background:C2, border:`2px solid ${INK}`, padding:"14px 16px" }}>
             <div style={{ fontFamily:FBB, fontSize:32, letterSpacing:2, color:GN, lineHeight:1 }}>{pace.pace}<span style={{ fontSize:13, fontFamily:FD, color:TX2 }}> min/km</span></div>
-            <div style={{ fontSize:11, color:TX2, marginTop:5 }}>{pace.kmh} km/h · {pace.km} km</div>
-            <div style={{ display:"flex", marginTop:10, border:`1px solid ${BR}`, borderRadius:8, overflow:"hidden" }}>
+            <div style={{ fontSize:11, color:TX2, marginTop:5, fontWeight:600 }}>{pace.kmh} km/h · {pace.km} km</div>
+            <div style={{ display:"flex", marginTop:10, border:`2px solid ${INK}` }}>
               {[{d:5,l:"5K"},{d:10,l:"10K"},{d:21,l:"21K 🎯"},{d:42,l:"42K"}].map((r,i) => (
-                <div key={r.d} style={{ flex:1, padding:"8px 0", textAlign:"center", borderRight:i<3?`1px solid ${BR}`:"none", background:r.d===21?"rgba(0,208,132,0.07)":"transparent" }}>
-                  <div style={{ fontFamily:FBB, fontSize:14, color:r.d===21?GN:TX }}>{raceTime(pace.pace, r.d)}</div>
-                  <div style={{ fontSize:8, color:MU, marginTop:2 }}>{r.l}</div>
+                <div key={r.d} style={{ flex:1, padding:"8px 0", textAlign:"center", borderRight:i<3?`2px solid ${INK}`:"none", background:r.d===21?"#E3EFE3":"transparent" }}>
+                  <div style={{ fontFamily:FBB, fontSize:15, color:r.d===21?GN:TX }}>{raceTime(pace.pace, r.d)}</div>
+                  <div style={{ fontSize:9, color:TX2, fontWeight:600, marginTop:2 }}>{r.l}</div>
                 </div>
               ))}
             </div>
-            <div style={{ fontSize:10, color:MU, letterSpacing:1, margin:"12px 0 8px" }}>TIPO DE SESIÓN</div>
+            <div style={{ fontSize:10, color:TX2, fontWeight:700, letterSpacing:1, margin:"12px 0 8px", textTransform:"uppercase" }}>Tipo de sesión</div>
             <div style={{ display:"flex", gap:6 }}>
               {RUN_TYPES.map(t => (
-                <button key={t.id} onClick={()=>setRtype(t.id)} style={{ flex:1, background:rtype===t.id?t.color:"transparent", border:`1.5px solid ${rtype===t.id?t.color:BR}`, borderRadius:20, color:rtype===t.id?"#000":TX2, fontFamily:FD, fontSize:10, fontWeight:600, padding:"7px 4px", cursor:"pointer", transition:"all .15s" }}>{t.label}</button>
+                <button key={t.id} onClick={()=>setRtype(t.id)} style={{ flex:1, minHeight:42, background:rtype===t.id?t.color:C1, border:`2px solid ${INK}`, boxShadow:rtype===t.id?"none":SH_SM, color:rtype===t.id?"#FFF":TX, fontFamily:FD, fontSize:11, fontWeight:700, padding:"8px 4px", cursor:"pointer" }}>{t.label}</button>
               ))}
             </div>
-            <button onClick={onSave} style={{ background:"transparent", color:GN, border:`1.5px solid ${GN}`, borderRadius:8, fontFamily:FD, fontWeight:600, fontSize:12, padding:11, cursor:"pointer", width:"100%", marginTop:10 }}>Guardar ✓</button>
+            <button onClick={onSave} style={{ background:GN, color:"#FFF", border:`2px solid ${INK}`, boxShadow:SH_SM, fontFamily:FD, fontWeight:800, fontSize:14, padding:13, cursor:"pointer", width:"100%", marginTop:12, textTransform:"uppercase", letterSpacing:.5 }}>Guardar ✓</button>
           </div>
         )}
       </div>
       {runs.length > 0 ? (
         <div>
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
-            <div style={{ fontSize:10, color:MU, letterSpacing:1 }}>HISTORIAL ({runs.length})</div>
+            <div style={{ fontSize:11, color:TX2, fontWeight:700, letterSpacing:1, textTransform:"uppercase" }}>Historial ({runs.length})</div>
             {!cfm
-              ? <button onClick={()=>setCfm(true)} style={{ background:"none", border:"none", cursor:"pointer", color:MU, fontSize:10, display:"flex", alignItems:"center", gap:4 }}><Trash2 size={12}/>Borrar todo</button>
+              ? <button onClick={()=>setCfm(true)} style={{ background:"none", border:"none", cursor:"pointer", color:TX2, fontSize:11, fontWeight:700, display:"flex", alignItems:"center", gap:4 }}><Trash2 size={14}/>Borrar todo</button>
               : <div style={{ display:"flex", gap:8, alignItems:"center" }}>
-                  <span style={{ fontSize:10, color:TX2 }}>¿Seguro?</span>
-                  <button onClick={()=>{onClear();setCfm(false);}} style={{ background:"#DC2626", border:"none", borderRadius:5, color:TX, fontSize:10, fontWeight:700, padding:"4px 10px", cursor:"pointer" }}>Sí</button>
-                  <button onClick={()=>setCfm(false)} style={{ background:C3, border:"none", borderRadius:5, color:TX2, fontSize:10, padding:"4px 10px", cursor:"pointer" }}>No</button>
+                  <span style={{ fontSize:11, color:TX, fontWeight:700 }}>¿Seguro?</span>
+                  <button onClick={()=>{onClear();setCfm(false);}} style={{ background:"#C0392B", border:`2px solid ${INK}`, color:"#FFF", fontSize:11, fontWeight:800, padding:"5px 11px", cursor:"pointer" }}>Sí</button>
+                  <button onClick={()=>setCfm(false)} style={{ background:C1, border:`2px solid ${INK}`, color:TX, fontSize:11, fontWeight:700, padding:"5px 11px", cursor:"pointer" }}>No</button>
                 </div>
             }
           </div>
           {[...runs].reverse().map((r, i) => {
             const tInfo = RUN_TYPES.find(t => t.id === r.type);
             return (
-              <div key={i} style={{ background:C1, borderRadius:8, padding:"12px 14px", marginBottom:6, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <div key={i} style={{ background:C1, border:`2px solid ${INK}`, boxShadow:SH_SM, padding:"12px 14px", marginBottom:8, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                 <div>
                   <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:3 }}>
-                    <div style={{ fontFamily:FBB, fontSize:20, letterSpacing:1, lineHeight:1 }}>{r.pace}<span style={{ fontSize:10, fontFamily:FD, fontWeight:400, color:TX2 }}> min/km</span></div>
-                    {tInfo && <span style={{ fontSize:8, fontWeight:700, color:tInfo.color, border:`1px solid ${tInfo.color}`, borderRadius:10, padding:"2px 7px" }}>{tInfo.label}</span>}
+                    <div style={{ fontFamily:FBB, fontSize:22, letterSpacing:1, lineHeight:1 }}>{r.pace}<span style={{ fontSize:10, fontFamily:FD, fontWeight:600, color:TX2 }}> min/km</span></div>
+                    {tInfo && <span style={{ fontSize:9, fontWeight:800, color:"#FFF", background:tInfo.color, border:`2px solid ${INK}`, padding:"2px 7px" }}>{tInfo.label}</span>}
                   </div>
-                  <div style={{ fontSize:10, color:TX2 }}>{r.date} · {r.km} km · {r.kmh} km/h</div>
+                  <div style={{ fontSize:11, color:TX2, fontWeight:600 }}>{r.date} · {r.km} km · {r.kmh} km/h</div>
                 </div>
-                <button onClick={()=>onDelete(runs.length-1-i)} style={{ background:"none", border:"none", cursor:"pointer", color:MU, padding:4, display:"flex" }}><Trash2 size={14}/></button>
+                <button aria-label="Borrar carrera" onClick={()=>onDelete(runs.length-1-i)} style={{ background:"none", border:"none", cursor:"pointer", color:TX2, padding:6, display:"flex" }}><Trash2 size={16}/></button>
               </div>
             );
           })}
-          <div style={{ fontSize:9, color:MU, textAlign:"center", marginTop:8 }}>Guardado en este dispositivo</div>
+          <div style={{ fontSize:10, color:TX2, textAlign:"center", marginTop:8, fontWeight:600 }}>Guardado en este dispositivo</div>
         </div>
       ) : (
-        <div style={{ textAlign:"center", padding:"32px 0", color:MU }}>
-          <div style={{ fontSize:12, fontWeight:500 }}>Sin registros aún</div>
+        <div style={{ textAlign:"center", padding:"32px 0", color:TX2 }}>
+          <div style={{ fontSize:13, fontWeight:700 }}>Sin registros aún</div>
         </div>
       )}
     </div>
@@ -566,7 +636,7 @@ function CarrerasView({ runs, rkm, setRkm, rmin, setRmin, rsec, setRsec, rtype, 
 export default function GymTracker() {
   const [tab,       setTab      ] = useState("hoy");
   const [routine,   setRoutine  ] = useState("principal");
-  const [done,      setDone     ] = useState({});
+  const [setProgress, setSetProgress] = useState({});
   const [sessionExercises, setSessionExercises] = useState({});
   const [runs,      setRuns     ] = useState([]);
   const [loaded,    setLoaded   ] = useState(false);
@@ -574,30 +644,49 @@ export default function GymTracker() {
   const [rkm,setRkm]=useState(""); const [rmin,setRmin]=useState(""); const [rsec,setRsec]=useState("");
   const [rtype,setRtype]=useState("z2"); const [pace,setPace]=useState(null);
 
-  const blank = () => { const d={}; ALL_FLAT.forEach(s=>s.exercises.forEach(e=>{d[e.id]=false;})); return d; };
+  const blankDone = () => { const d={}; ALL_FLAT.forEach(s=>s.exercises.forEach(e=>{d[e.id]=false;})); return d; };
 
   useEffect(() => {
     try { const l=document.createElement("link"); l.rel="stylesheet"; l.href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap"; document.head.appendChild(l); } catch {}
     (async () => {
       try {
         const w = isoWeek();
-        const [sw,sd,sse,sr,srt,sc,sa,sdel] = await Promise.all([
-          store.get("week"), store.get("done"), store.get("sessionExercises"),
+        const [sw,sd,ssp,sse,sr,srt,sc,sa,sdel] = await Promise.all([
+          store.get("week"), store.get("done"), store.get("setProgress"), store.get("sessionExercises"),
           store.get("runs"), store.get("routine"), store.get("custom"),
           store.get("addedEx"), store.get("deletedEx"),
         ]);
-        if (sw !== w) { const f=blank(); setDone(f); await store.set("week",w); await store.set("done",f); }
-        else setDone(sd || blank());
         const nextSessionExercises = sse ?? migrateLegacy(sc||{}, sa||{}, sdel||[], ALL_FLAT);
         setSessionExercises(nextSessionExercises);
         if (sse === null) await store.set("sessionExercises", nextSessionExercises);
+
+        // Totales de series por ejercicio (definición efectiva).
+        const totals = {};
+        ALL_FLAT.forEach(s => resolveSession(s, nextSessionExercises[s.id]).items.forEach(ex => { totals[ex.id] = exTotalSets(ex); }));
+
+        let sp;
+        if (sw !== w) {
+          // Reset semanal: progreso por series a cero.
+          sp = {};
+          await store.set("week", w);
+          await store.set("setProgress", sp);
+          await store.set("done", blankDone());
+        } else if (ssp) {
+          sp = ssp;
+        } else {
+          // Migración retrocompat desde `done` legacy: true → todas las series, false → 0.
+          sp = {};
+          const dmap = sd || {};
+          Object.keys(totals).forEach(id => { sp[id] = dmap[id] ? totals[id] : 0; });
+          await store.set("setProgress", sp);
+        }
+        setSetProgress(sp);
         setRuns(sr||[]);
         if (srt) setRoutine(srt);
         setLoaded(true);
       } catch (err) {
         console.error("Error al cargar datos de almacenamiento local:", err);
-        // Fallback: usar datos vacíos para que la app cargue de todas formas
-        setDone(blank());
+        setSetProgress({});
         setSessionExercises({});
         setRuns([]);
         setLoaded(true);
@@ -605,7 +694,11 @@ export default function GymTracker() {
     })();
   }, []);
 
-  const toggle     = async id => { const n={...done,[id]:!done[id]}; setDone(n); await store.set("done",n); };
+  const saveSetProgress = async n => { setSetProgress(n); await store.set("setProgress", n); };
+  const onSetCount = async (exId, n) => {
+    const v = Math.max(0, Math.round(n));
+    await saveSetProgress({ ...setProgress, [exId]: v });
+  };
   const sessionEntry = sid => {
     const session = ALL_FLAT.find(s => s.id === sid);
     const current = sessionExercises[sid] || {};
@@ -629,7 +722,7 @@ export default function GymTracker() {
     if (!entry.order.includes(ex.id)) entry.order.push(ex.id);
     entry.deleted = entry.deleted.filter(id => id !== ex.id);
     await saveSessionExercises({ ...sessionExercises, [sid]:entry });
-    const nd={...done,[ex.id]:false}; setDone(nd); await store.set("done",nd);
+    await saveSetProgress({ ...setProgress, [ex.id]: 0 });
   };
   const deleteEx = async (sid, id) => {
     const session = ALL_FLAT.find(s => s.id === sid);
@@ -659,42 +752,47 @@ export default function GymTracker() {
 
   const activeSessions = routine === "principal" ? MAIN : MANT;
   const todayN = new Date().getDay();
+
+  // Mapa `done` derivado del progreso por series (para conteos y rings).
+  const doneMap = {};
+  ALL_FLAT.forEach(s => resolveSession(s, sessionExercises[s.id]).items.forEach(ex => { doneMap[ex.id] = isExDone(ex, setProgress); }));
+
   const activeIds = activeSessions.flatMap(s => resolveSession(s, sessionExercises[s.id]).order);
-  const totalEx = activeIds.length, doneEx = activeIds.filter(id=>done[id]).length;
+  const totalEx = activeIds.length, doneEx = activeIds.filter(id=>doneMap[id]).length;
   const wPct = totalEx ? Math.round((doneEx/totalEx)*100) : 0;
 
-  if (!loaded) return <div style={{background:BG,height:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:FBB,fontSize:18,letterSpacing:6,color:MU}}>CARGANDO</div>;
+  if (!loaded) return <div style={{background:BG,height:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:FBB,fontSize:20,letterSpacing:6,color:INK}}>CARGANDO</div>;
 
-  const sp = { done, onToggle:toggle, sessionExercises, onSaveOverride:saveOverride, onAddEx:addEx, onDeleteEx:deleteEx, onMoveEx:moveEx };
+  const sp = { done:doneMap, setProgress, onSetCount, sessionExercises, onSaveOverride:saveOverride, onAddEx:addEx, onDeleteEx:deleteEx, onMoveEx:moveEx };
 
   return (
-    <div style={{ background:BG, fontFamily:FD, color:TX, minHeight:"100vh", maxWidth:480, margin:"0 auto", paddingBottom:70 }}>
-      <style>{`*{box-sizing:border-box}::-webkit-scrollbar{display:none}input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}input[type=number]{-moz-appearance:textfield}input:focus,textarea:focus{outline:none}.tap:active{opacity:.65}`}</style>
+    <div style={{ background:BG, fontFamily:FD, color:TX, minHeight:"100vh", maxWidth:480, margin:"0 auto", paddingBottom:"calc(78px + env(safe-area-inset-bottom))" }}>
+      <style>{`*{box-sizing:border-box}::-webkit-scrollbar{display:none}input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}input[type=number]{-moz-appearance:textfield}input:focus,textarea:focus{outline:none}.tap:active{transform:translate(2px,2px)}`}</style>
 
       {/* HEADER */}
-      <div style={{ padding:"16px 18px 12px", position:"sticky", top:0, zIndex:90, background:BG, borderBottom:`1px solid ${BR}` }}>
+      <div style={{ padding:"16px 16px 14px", position:"sticky", top:0, zIndex:90, background:BG, borderBottom:`3px solid ${INK}` }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
           <div>
-            <div style={{ fontFamily:FBB, fontSize:20, letterSpacing:2, lineHeight:1 }}>GYM<span style={{ background:"linear-gradient(90deg,#FF512F,#DD2476)", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent" }}>TRACK</span></div>
-            <div style={{ fontSize:10, color:MU, marginTop:4 }}>{DAY_F[todayN]} · {isoWeek()}</div>
+            <div style={{ fontFamily:FBB, fontSize:30, letterSpacing:2, lineHeight:1, color:TX }}>GYM<span style={{ background:"#FF512F", color:"#FFF", padding:"0 6px", border:`2px solid ${INK}` }}>TRACK</span></div>
+            <div style={{ fontSize:11, color:TX2, marginTop:6, fontWeight:600 }}>{DAY_F[todayN]} · {isoWeek()}</div>
           </div>
           <div style={{ display:"flex", alignItems:"center", gap:10 }}>
             <div style={{ textAlign:"right" }}>
-              <div style={{ fontFamily:FBB, fontSize:22, letterSpacing:1, lineHeight:1 }}>{wPct}<span style={{ fontSize:11, color:MU, fontFamily:FD }}>%</span></div>
-              <div style={{ fontSize:10, color:MU }}>{doneEx}/{totalEx}</div>
+              <div style={{ fontFamily:FBB, fontSize:26, letterSpacing:1, lineHeight:1, color:TX }}>{wPct}<span style={{ fontSize:13, color:TX2, fontFamily:FD }}>%</span></div>
+              <div style={{ fontSize:11, color:TX2, fontWeight:600 }}>{doneEx}/{totalEx}</div>
             </div>
-            <div style={{ position:"relative", width:36, height:36, display:"flex", alignItems:"center", justifyContent:"center" }}>
-              <Ring pct={wPct} c1="#FF512F" c2="#DD2476" size={36} thick={3}/>
-              <div style={{ position:"absolute", fontFamily:FBB, fontSize:9, color:TX }}>{wPct}</div>
+            <div style={{ position:"relative", width:44, height:44, display:"flex", alignItems:"center", justifyContent:"center" }}>
+              <Ring pct={wPct} color="#FF512F" size={44} thick={4}/>
+              <div style={{ position:"absolute", fontFamily:FBB, fontSize:12, color:TX }}>{wPct}</div>
             </div>
           </div>
         </div>
         {/* ROUTINE SWITCHER */}
-        <div style={{ display:"flex", gap:6 }}>
+        <div style={{ display:"flex", gap:8 }}>
           {[{id:"principal",label:"Principal"},{id:"mantenimiento",label:"Mantenimiento"}].map(r => (
             <button key={r.id} className="tap" onClick={()=>switchRoutine(r.id)}
-              style={{ flex:1, background:routine===r.id?C3:"transparent", border:`1px solid ${routine===r.id?BR:C2}`, borderRadius:8, color:routine===r.id?TX:MU, fontFamily:FD, fontSize:11, fontWeight:600, padding:"7px 0", cursor:"pointer", transition:"all .15s" }}>
-              {routine===r.id && <span style={{ color:"#FF512F", marginRight:4 }}>●</span>}{r.label}
+              style={{ flex:1, minHeight:46, background:routine===r.id?INK:C1, border:`2px solid ${INK}`, boxShadow:routine===r.id?"none":SH_SM, color:routine===r.id?"#FFF":TX, fontFamily:FD, fontSize:13, fontWeight:800, padding:"10px 0", cursor:"pointer", textTransform:"uppercase", letterSpacing:.5 }}>
+              {r.label}
             </button>
           ))}
         </div>
@@ -706,11 +804,10 @@ export default function GymTracker() {
         {tab==="carreras" && <CarrerasView runs={runs} rkm={rkm} setRkm={setRkm} rmin={rmin} setRmin={setRmin} rsec={rsec} setRsec={setRsec} rtype={rtype} setRtype={setRtype} pace={pace} onCalc={calcPace} onSave={saveRun} onDelete={deleteRun} onClear={clearRuns}/>}
       </main>
 
-      <nav style={{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:480, background:C1, borderTop:`1px solid ${BR}`, display:"flex", zIndex:100 }}>
+      <nav style={{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:480, background:C1, borderTop:`3px solid ${INK}`, display:"flex", zIndex:100, paddingBottom:"env(safe-area-inset-bottom)" }}>
         {[{id:"hoy",lbl:"Hoy"},{id:"semana",lbl:"Semana"},{id:"carreras",lbl:"Correr"}].map(t => (
-          <button key={t.id} className="tap" onClick={()=>{setTab(t.id);setSemId(null);}} style={{ flex:1, border:"none", background:"none", cursor:"pointer", padding:"13px 0 11px", display:"flex", flexDirection:"column", alignItems:"center", gap:2, position:"relative" }}>
-            <div style={{ fontSize:11, fontWeight:600, color:tab===t.id?TX:MU, letterSpacing:.4 }}>{t.lbl}</div>
-            {tab===t.id && <div style={{ position:"absolute", top:0, left:"50%", transform:"translateX(-50%)", width:24, height:2, background:"linear-gradient(90deg,#FF512F,#DD2476)", borderRadius:"0 0 2px 2px" }}/>}
+          <button key={t.id} className="tap" onClick={()=>{setTab(t.id);setSemId(null);}} style={{ flex:1, minHeight:64, border:"none", borderRight:t.id!=="carreras"?`2px solid ${INK}`:"none", background:tab===t.id?INK:"transparent", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:2 }}>
+            <div style={{ fontFamily:FBB, fontSize:20, letterSpacing:1, color:tab===t.id?"#FFF":TX }}>{t.lbl}</div>
           </button>
         ))}
       </nav>
