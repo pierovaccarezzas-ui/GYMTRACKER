@@ -114,6 +114,35 @@
 - **Next best step**: User approves PLAN-002 (status → `approved`); Executor (Codex) implements
   it in `src/GymTracker.jsx` after `./init.sh` passes.
 
+### Session 005
+
+- **Date**: 2026-06-08
+- **Agent**: Planner (Opus 4.8)
+- **Goal**: Plan the web UI improvements: brutalist cream redesign, larger buttons (esp. bottom
+  nav), a "Calentamiento" exercise category, per-set completion tracking, and editable exercise
+  names.
+- **Completed**:
+  - Read `AGENTS.md`, `PROGRESS.md`, `FEATURE_LIST.json` and `src/GymTracker.jsx`.
+  - Wrote `docs/plans/PLAN-003-brutalist-redesign-and-set-tracking.md` (executor: v0, with a
+    delimited Codex lane for the per-set data model). Per user direction, **all interface design
+    is assigned to V0**; only the per-set storage/migration logic is flagged for Codex.
+  - Added 4 features to `FEATURE_LIST.json`, all `planned` / `plan_id: PLAN-003`:
+    `ui-005` (brutalist cream redesign + larger touch targets), `ui-006` (per-set tracking),
+    `ui-007` (warmup category), `ui-008` (edit exercise name).
+- **Verification run**: None (Planner role does not execute build/verification).
+- **Evidence captured**: Plan file at `docs/plans/PLAN-003-brutalist-redesign-and-set-tracking.md`.
+- **Commits**: None (repo still not under git; `git init` remains a PLAN-001 task).
+- **Files or artifacts updated**: `docs/plans/PLAN-003-...md`, `PROGRESS.md`, `FEATURE_LIST.json`.
+- **Known risk or unresolved issue**:
+  - **Role crossover**: per-set tracking (`ui-006`) is logic (state/storage = Codex) but lives
+    inside a V0 design plan. If strict one-agent-per-feature is desired, split the `ui-006`
+    data-model into its own Codex plan. Flagged in PLAN-003 risks.
+  - **Dependency**: PLAN-003 should run after PLAN-002 (name editing uses
+    `sessionExercises.overrides`); fallback to `custom[id].name` if executed first.
+  - Theme-color / manifest background should move to cream for PWA consistency (PLAN-001).
+- **Next best step**: User approves PLAN-003 (status → `approved`); decide whether to split the
+  `ui-006` Codex lane, then sequence execution (PLAN-002 → PLAN-003).
+
 ### Session 004
 
 - **Date**: 2026-06-08
