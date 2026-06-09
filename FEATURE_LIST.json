@@ -204,6 +204,19 @@
       "evidence": "Reviewer verified: edit form has Name field. Changing it overrides default name, marks it as editado, and persists under sessionExercises.overrides.name. Reset removes override.",
       "plan_id": "PLAN-003",
       "notes": "ExCard edit form (lines 244-267) lacks a name field today. Name persisted via override (sessionExercises.overrides[id].name from PLAN-002, or custom[id].name fallback). Planned in PLAN-003."
+    },
+    {
+      "id": "ui-009",
+      "priority": 12,
+      "area": "ui",
+      "title": "Swiss Neo-Brutalist editorial redesign (light/paper)",
+      "user_visible_behavior": "The app adopts a 'Swiss Neo-Brutalist SaaS editorial' design on a light cream/paper base: large editorial headlines, high contrast, rigid grid with hairline rules, generous whitespace, numbered sections (01/02/03), monospace technical labels, no gradients, and a single global accent. Behavior is unchanged — this is purely visual. Bottom nav and main buttons stay large (>= 48px).",
+      "status": "planned",
+      "executor": "claude-design",
+      "verification": "On a phone-sized viewport, verify editorial/Swiss styling across Hoy/Semana/Correr (numbered sections, mono labels, no gradients), self-hosted fonts (no fonts.googleapis.com network request, works offline), >= 48px touch targets, and NO behavior regressions.",
+      "evidence": null,
+      "plan_id": "PLAN-004",
+      "notes": "Design-only. Supersedes the visual outcome of ui-005 (PLAN-003 'brutalist cream', already passing) without erasing its record. Executor moved off V0 (user directive) to claude-design, fallback codex. Replaces runtime Bebas Neue with self-hosted Inter + IBM Plex Mono; removes per-session gradients. All styles inline in src/GymTracker.jsx (tokens 22-27)."
     }
   ]
 }

@@ -347,3 +347,34 @@
 - **Files or artifacts updated**: `FEATURE_LIST.json`, `PROGRESS.md`, `docs/plans/PLAN-003-brutalist-redesign-and-set-tracking.md`.
 - **Known risk or unresolved issue**: None.
 - **Next best step**: Proceed to planning `ui-002` (Workout history & statistics).
+
+### Session 006
+
+- **Date**: 2026-06-08
+- **Agent**: Planner (Opus 4.8)
+- **Goal**: Plan a new visual redesign — "Swiss Neo-Brutalist SaaS Editorial" on a light/paper
+  (cream) base — because the user did not like the already-shipped brutalist-cream look (`ui-005`,
+  PLAN-003, `passing`). Design-only; no logic/behavior changes.
+- **Completed**:
+  - Read `AGENTS.md`, `PROGRESS.md`, `FEATURE_LIST.json`, `src/index.css`.
+  - Confirmed with the user: light/paper base; typography at Planner's discretion.
+  - Wrote `docs/plans/PLAN-004-swiss-neobrutalist-editorial-redesign.md`: editorial/Swiss system
+    (large headlines, hairline grid, numbered 01/02/03, monospace technical labels, flat color
+    blocks instead of gradients, single global accent), self-hosted Inter + IBM Plex Mono
+    replacing runtime Bebas Neue (fixes offline), larger touch targets retained.
+  - Added feature `ui-009` (`planned`, `plan_id: PLAN-004`, `executor: claude-design`). It
+    **supersedes the visual outcome of `ui-005`** without erasing that passing record.
+- **Verification run**: None (Planner role does not execute build/verification).
+- **Evidence captured**: Plan at `docs/plans/PLAN-004-swiss-neobrutalist-editorial-redesign.md`.
+- **Commits**: None yet (Planner; will offer to push the docs).
+- **Files or artifacts updated**: `docs/plans/PLAN-004-...md`, `FEATURE_LIST.json`, `PROGRESS.md`.
+- **Known risk or unresolved issue**:
+  - **Role deviation**: `AGENTS.md` assigns UI to V0, but per user directive V0 is no longer used;
+    this plan is assigned to **Claude Design** with **Codex** as fallback. Recorded in PLAN-004 yaml.
+  - **Design-only guard**: executor must stop and return to Planner if a visual change appears to
+    require logic changes (the only sanctioned non-style edit is removing the runtime Google Fonts
+    injection in `GymTracker.jsx` ~line 542).
+  - When PLAN-003's functional features are revisited (`ui-006/007/008`), they must inherit this
+    new visual system (e.g. the warmup category needs a token color in the new palette).
+- **Next best step**: User approves PLAN-004 (status → `approved`); Claude Design (or Codex)
+  implements it in `src/GymTracker.jsx` + `src/index.css` + `public/fonts/` after `./init.sh` passes.
