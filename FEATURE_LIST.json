@@ -1,6 +1,6 @@
 {
   "project": "GymTrack PWA",
-  "last_updated": "2026-06-09T00:21:00-04:00",
+  "last_updated": "2026-06-09T00:41:58-04:00",
   "rules": {
     "single_active_feature": true,
     "passing_requires_evidence": true,
@@ -217,6 +217,19 @@
       "evidence": "Reviewer verified: ./init.sh runs successfully and exits 0. npm run build generates build artifacts without error. The built bundle features a clean, responsive layout. Checked the codebase to confirm full alignment with PLAN-004 style tokens: background #E9DFC8, text #17150F, borders use hairlines, sections are numbered 01/02/03 in monospace IBM Plex Mono, no runtime Google Fonts are imported, and fonts are successfully precached. No logical or state management regressions found.",
       "plan_id": "PLAN-004",
       "notes": "Design-only. Supersedes the visual outcome of ui-005 (PLAN-003 'brutalist cream', already passing) without erasing its record. Executor moved off V0 (user directive) to claude-design, fallback codex. Replaces runtime Bebas Neue with self-hosted Inter + IBM Plex Mono; removes per-session gradients. All styles inline in src/GymTracker.jsx (tokens 22-27)."
+    },
+    {
+      "id": "ui-010",
+      "priority": 13,
+      "area": "ui",
+      "title": "Professional compact SaaS/App web redesign",
+      "user_visible_behavior": "The app uses a polished, compact professional SaaS/App web visual system across Hoy, Semana and Correr, with proportionate 36–40px visible action controls, reasonable touch areas, and a contained 56–60px mobile bottom navigation.",
+      "status": "in_progress",
+      "executor": "v0",
+      "verification": "Open the app at 320px, 390px and 480px widths. Verify the compact SaaS visual system across all views and forms, visible action controls around 36–40px with reasonable non-overlapping touch areas, bottom nav at 56–60px plus safe area, and no behavior or persistence regressions.",
+      "evidence": null,
+      "plan_id": "PLAN-005",
+      "notes": "Visual-only. Supersedes the visual outcome of ui-009 without changing its passing record or application logic. Implemented by Codex at the user's explicit request using the selected dark premium direction; awaiting Antigravity review."
     }
   ]
 }

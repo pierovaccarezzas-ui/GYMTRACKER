@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Pencil, X, Trash2, Plus } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, MoreVertical, Pencil, X, Trash2, Plus } from "lucide-react";
 
 // ── STORAGE ───────────────────────────────────────────────────────────────
 const store = {
@@ -20,16 +20,16 @@ function isoWeek() {
 }
 
 // ── TOKENS ────────────────────────────────────────────────────────────────
-const BG  = "#E9DFC8"; const C1 = "#F7F1E4"; const C2 = "#E1D5BD"; const C3 = "#C9BDA5";
-const BR  = "#17150F"; const TX = "#17150F"; const TX2 = "#5B554A"; const MU = "#847B6A";
-const GN  = "#6D9D73"; const PINK = "#E5482F"; const YELLOW = "#E5482F";
+const BG  = "#070B14"; const C1 = "#101724"; const C2 = "#151E2D"; const C3 = "#263247";
+const BR  = "#2A374B"; const TX = "#F4F7FB"; const TX2 = "#AAB6C8"; const MU = "#6F7D91";
+const GN  = "#4ADE80"; const PINK = "#22D3EE"; const YELLOW = "#FBBF24";
 const FBB = "'Inter','Arial Black',Arial,sans-serif";
 const FD  = "'Inter',system-ui,-apple-system,'Segoe UI',sans-serif";
 const FM  = "'IBM Plex Mono','SFMono-Regular',Consolas,monospace";
-const HAIR = "rgba(23,21,15,.18)";
-const PANEL = { background:C1, border:`1px solid ${HAIR}`, borderRadius:0, boxShadow:"none" };
-const INPUT = { fontFamily:FM, fontSize:12, fontWeight:500, background:C1, border:`1px solid ${BR}`, borderRadius:0, padding:"13px 12px", color:TX, width:"100%", minHeight:48 };
-const ACTION = { minHeight:48, border:`1px solid ${BR}`, borderRadius:0, boxShadow:"none", color:TX, fontFamily:FM, fontWeight:500, fontSize:10, letterSpacing:1, textTransform:"uppercase", cursor:"pointer" };
+const HAIR = "rgba(148,163,184,.16)";
+const PANEL = { background:C1, border:`1px solid ${HAIR}`, borderRadius:12, boxShadow:"0 10px 28px rgba(0,0,0,.16)" };
+const INPUT = { fontFamily:FD, fontSize:13, fontWeight:500, background:"#0B111C", border:`1px solid ${BR}`, borderRadius:8, padding:"10px 12px", color:TX, width:"100%", minHeight:42 };
+const ACTION = { minHeight:40, border:`1px solid ${BR}`, borderRadius:8, boxShadow:"none", color:TX, fontFamily:FD, fontWeight:700, fontSize:10, letterSpacing:.45, textTransform:"uppercase", cursor:"pointer" };
 const MONO = { fontFamily:FM, fontSize:10, fontWeight:500, letterSpacing:1.25, textTransform:"uppercase" };
 
 // ── RUTINA PRINCIPAL ──────────────────────────────────────────────────────
@@ -238,6 +238,7 @@ function ExCard({ ex, index, progress, done, c1, onToggleSimple, onToggleSet, is
   const [editing, setEditing] = useState(false);
   const [delCfm,  setDelCfm ] = useState(false);
   const [showSets, setShowSets] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
   const [fName,   setFName  ] = useState(ex.name);
   const [fType,   setFType  ] = useState(ex.type);
   const [fSets,   setFSets  ] = useState(String(ex.sets || ""));
@@ -246,8 +247,18 @@ function ExCard({ ex, index, progress, done, c1, onToggleSimple, onToggleSet, is
 
   const startEditing = () => {
     setFName(ex.name); setFType(ex.type); setFSets(String(ex.sets||"")); setFReps(ex.reps||""); setFTarget(ex.target||"");
-    setEditing(true); setDelCfm(false);
+    setEditing(true); setDelCfm(false); setShowMenu(false);
   };
+  useEffect(() => {
+    const closeMenu = event => { if (event.detail !== ex.id) setShowMenu(false); };
+    const closeOutside = () => setShowMenu(false);
+    window.addEventListener("gymtrack:exercise-menu", closeMenu);
+    document.addEventListener("click", closeOutside);
+    return () => {
+      window.removeEventListener("gymtrack:exercise-menu", closeMenu);
+      document.removeEventListener("click", closeOutside);
+    };
+  }, [ex.id]);
 
   const save = () => {
     const f = { name:fName.trim() || ex.name, type:fType, target:fTarget };
@@ -257,11 +268,12 @@ function ExCard({ ex, index, progress, done, c1, onToggleSimple, onToggleSet, is
   };
   const tclr = T_CLR[ex.type] || T_CLR.strength;
   const hasSets = ex.type !== "cardio" && !!ex.sets;
-  const moveStyle = disabled => ({ width:42, height:42, background:"transparent", border:`1px solid ${disabled?HAIR:BR}`, borderRadius:0, cursor:disabled?"default":"pointer", color:disabled?MU:TX, display:"flex", alignItems:"center", justifyContent:"center" });
+  const menuItem = disabled => ({ minHeight:38, width:"100%", padding:"0 11px", background:"transparent", border:"none", borderRadius:7, cursor:disabled?"default":"pointer", color:disabled?MU:TX, display:"flex", alignItems:"center", gap:9, fontFamily:FD, fontSize:12, fontWeight:600, textAlign:"left" });
+  const runMenuAction = action => { setShowMenu(false); action(); };
 
   return (
     <>
-    <div style={{ ...PANEL, background:done?"#E0E8D9":C1, marginBottom:0, overflow:"hidden", borderLeft:"none", borderRight:"none", borderBottom:`1px solid ${HAIR}`, transition:"background .2s" }}>
+    <div style={{ ...PANEL, background:done?"#10251E":C1, marginBottom:8, overflow:"visible", position:"relative", transition:"background .2s,border-color .2s", borderColor:done?"rgba(74,222,128,.35)":HAIR }}>
       {delCfm && (
         <div style={{ background:"rgba(220,38,38,0.12)", padding:"9px 14px", display:"flex", justifyContent:"space-between", alignItems:"center", borderBottom:`1px solid rgba(220,38,38,0.25)` }}>
           <span style={{ fontSize:11, color:"#FCA5A5" }}>¿Borrar este ejercicio?</span>
@@ -272,11 +284,11 @@ function ExCard({ ex, index, progress, done, c1, onToggleSimple, onToggleSet, is
         </div>
       )}
       <div style={{ display:"flex" }}>
-        <div style={{ width:48, padding:"17px 10px", fontFamily:FM, fontSize:11, color:done?GN:PINK, borderRight:`1px solid ${HAIR}`, flexShrink:0 }}>{String(index + 1).padStart(2,"0")}</div>
-        <div style={{ flex:1, padding:"16px 14px" }}>
+        <div style={{ width:36, padding:"15px 8px", fontFamily:FM, fontSize:9, color:done?GN:MU, borderRight:`1px solid ${HAIR}`, flexShrink:0 }}>{String(index + 1).padStart(2,"0")}</div>
+        <div style={{ flex:1, minWidth:0, padding:"13px 12px" }}>
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
             <div onClick={()=>hasSets && !editing && setShowSets(true)} style={{ flex:1, paddingRight:8, cursor:hasSets?"pointer":"default" }}>
-              <div style={{ fontSize:18, fontWeight:750, letterSpacing:-.5, color:TX, lineHeight:1.16 }}>{ex.name}</div>
+              <div style={{ fontSize:15, fontWeight:750, letterSpacing:-.2, color:TX, lineHeight:1.22 }}>{ex.name}</div>
               {!editing && <>
                 <div style={{ display:"flex", gap:5, marginTop:6, flexWrap:"wrap", alignItems:"center" }}>
                   <span style={{ ...MONO, fontSize:9, color:tclr }}>{T_LBL[ex.type] || "Fuerza"}</span>
@@ -293,20 +305,25 @@ function ExCard({ ex, index, progress, done, c1, onToggleSimple, onToggleSet, is
                 </div>}
               </>}
             </div>
-            <div style={{ display:"flex", gap:6, alignItems:"center", flexShrink:0 }}>
-              <button onClick={()=>hasSets?setShowSets(true):onToggleSimple()} style={{ width:48, height:48, borderRadius:0, background:done?BR:PINK, border:`1px solid ${done?BR:PINK}`, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:C1, transition:"all .2s" }}>
-                {done ? <Check size={19} strokeWidth={3}/> : <span style={{ fontFamily:FBB, fontSize:hasSets?18:24 }}>{hasSets?`${progress}/${ex.sets}`:"+"}</span>}
+            <div style={{ display:"flex", gap:6, alignItems:"center", flexShrink:0, position:"relative" }}>
+              <button aria-label="Opciones del ejercicio" onClick={event=>{ event.stopPropagation(); const next=!showMenu; window.dispatchEvent(new CustomEvent("gymtrack:exercise-menu",{detail:next?ex.id:null})); setShowMenu(next); }} style={{ width:34, height:34, borderRadius:8, background:C2, border:`1px solid ${BR}`, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:TX2 }}>
+                <MoreVertical size={16}/>
               </button>
+              <button onClick={()=>hasSets?setShowSets(true):onToggleSimple()} style={{ width:40, height:40, borderRadius:9, background:done?GN:PINK, border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:BG, transition:"all .2s" }}>
+                {done ? <Check size={18} strokeWidth={3}/> : <span style={{ fontFamily:FD, fontWeight:800, fontSize:hasSets?11:18 }}>{hasSets?`${progress}/${ex.sets}`:"+"}</span>}
+              </button>
+              {showMenu && <>
+                <div onClick={event=>event.stopPropagation()} style={{ position:"absolute", zIndex:190, right:46, top:0, width:154, padding:5, background:"#182233", border:`1px solid ${BR}`, borderRadius:10, boxShadow:"0 16px 40px rgba(0,0,0,.42)" }}>
+                  <button disabled={isFirst} onClick={()=>runMenuAction(()=>onMove(-1))} style={menuItem(isFirst)}><ChevronUp size={15}/>Subir</button>
+                  <button disabled={isLast} onClick={()=>runMenuAction(()=>onMove(1))} style={menuItem(isLast)}><ChevronDown size={15}/>Bajar</button>
+                  <button onClick={()=>runMenuAction(startEditing)} style={menuItem(false)}><Pencil size={14}/>Editar</button>
+                  <button onClick={()=>runMenuAction(()=>setDelCfm(true))} style={{ ...menuItem(false), color:"#FCA5A5" }}><Trash2 size={14}/>Borrar</button>
+                </div>
+              </>}
             </div>
           </div>
-          {!editing && <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:7, marginTop:12 }}>
-            <button aria-label="Subir ejercicio" title="Subir ejercicio" disabled={isFirst} onClick={()=>onMove(-1)} style={moveStyle(isFirst)}><ChevronUp size={17}/></button>
-            <button aria-label="Bajar ejercicio" title="Bajar ejercicio" disabled={isLast} onClick={()=>onMove(1)} style={moveStyle(isLast)}><ChevronDown size={17}/></button>
-            <button aria-label="Editar ejercicio" onClick={startEditing} style={moveStyle(false)}><Pencil size={16}/></button>
-            <button aria-label="Borrar ejercicio" onClick={() => setDelCfm(!delCfm)} style={{ ...moveStyle(false), background:delCfm?PINK:C1 }}><Trash2 size={16}/></button>
-          </div>}
           {editing && (
-            <div style={{ marginTop:12, borderTop:`2px solid ${BR}`, paddingTop:12 }}>
+            <div style={{ marginTop:12, borderTop:`1px solid ${BR}`, paddingTop:12 }}>
               <div style={{ marginBottom:10 }}>
                 <div style={{ fontSize:9, color:MU, letterSpacing:1, marginBottom:4 }}>NOMBRE</div>
                 <input type="text" value={fName} onChange={e=>setFName(e.target.value)} style={INPUT}/>
@@ -341,17 +358,17 @@ function ExCard({ ex, index, progress, done, c1, onToggleSimple, onToggleSet, is
       </div>
     </div>
     {showSets && hasSets && (
-      <div onClick={()=>setShowSets(false)} style={{ position:"fixed", inset:0, zIndex:300, background:"rgba(23,21,15,.72)", padding:18, display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
-        <div onClick={e=>e.stopPropagation()} style={{ ...PANEL, width:"100%", maxWidth:444, background:BG, padding:20, borderTop:`4px solid ${PINK}` }}>
+      <div onClick={()=>setShowSets(false)} style={{ position:"fixed", inset:0, zIndex:300, background:"rgba(0,0,0,.74)", padding:12, display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
+        <div onClick={e=>e.stopPropagation()} style={{ ...PANEL, width:"100%", maxWidth:444, background:C1, padding:16, borderColor:BR }}>
           <div style={{ display:"flex", justifyContent:"space-between", gap:12, borderBottom:`1px solid ${BR}`, paddingBottom:16, marginBottom:16 }}>
             <div><div style={{ ...MONO, color:PINK }}>{T_LBL[ex.type]} / SET TRACKER</div><div style={{ fontFamily:FBB, fontSize:30, fontWeight:800, letterSpacing:-1.2, lineHeight:1.05, marginTop:8 }}>{ex.name}</div></div>
-            <button aria-label="Cerrar series" onClick={()=>setShowSets(false)} style={{ ...ACTION, width:48, background:C1, boxShadow:"none" }}><X size={20}/></button>
+            <button aria-label="Cerrar series" onClick={()=>setShowSets(false)} style={{ ...ACTION, width:40, background:C2, boxShadow:"none" }}><X size={18}/></button>
           </div>
           <div style={{ ...MONO, fontSize:11, marginBottom:12 }}>PROGRESO / {String(progress).padStart(2,"0")} DE {String(ex.sets).padStart(2,"0")}</div>
           <div style={{ display:"grid", gap:8 }}>
             {Array.from({ length:ex.sets }).map((_, index) => {
               const checked = index < progress;
-              return <button key={index} onClick={()=>onToggleSet(index)} style={{ ...ACTION, minHeight:58, display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 14px", background:checked?BR:C1, color:checked?C1:TX, borderColor:checked?BR:HAIR }}>
+              return <button key={index} onClick={()=>onToggleSet(index)} style={{ ...ACTION, minHeight:46, display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 14px", background:checked?"rgba(34,211,238,.14)":C2, color:checked?PINK:TX, borderColor:checked?PINK:HAIR }}>
                 <span>SET {String(index + 1).padStart(2,"0")}</span><span style={{ display:"flex", alignItems:"center", gap:8 }}>{ex.reps && `${ex.reps} REP`}{checked && <Check size={18} strokeWidth={2}/>}</span>
               </button>;
             })}
@@ -373,13 +390,13 @@ function SessionView({ session, setProgress, sessionExercises, onSaveOverride, o
   const overrides = sessionExercises[session.id]?.overrides || {};
   return (
     <div>
-      <div style={{ background:C1, borderBottom:`1px solid ${BR}`, padding:"28px 20px 24px", position:"relative", overflow:"hidden" }}>
-        <div style={{ position:"absolute", left:0, top:0, width:"100%", height:7, background:session.c1 }}/>
+      <div style={{ background:C1, borderBottom:`1px solid ${BR}`, padding:"20px 16px 16px", position:"relative", overflow:"hidden" }}>
+        <div style={{ position:"absolute", left:0, top:0, width:"100%", height:3, background:PINK }}/>
         <div style={{ position:"relative", display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
           <div>
-            <div style={{ ...MONO, color:PINK, marginBottom:10 }}>01 / SESIÓN ACTIVA</div>
-            <div style={{ fontFamily:FBB, fontSize:"clamp(48px,15vw,68px)", fontWeight:850, letterSpacing:-3.5, lineHeight:.86, maxWidth:300 }}>{session.label}</div>
-            <div style={{ ...MONO, color:TX2, marginTop:14 }}>{DAY_S[session.day]} / {session.sub}</div>
+            <div style={{ ...MONO, color:PINK, marginBottom:7 }}>SESIÓN ACTIVA</div>
+            <div style={{ fontFamily:FBB, fontSize:"clamp(30px,9vw,38px)", fontWeight:800, letterSpacing:-1.8, lineHeight:.98, maxWidth:300 }}>{session.label}</div>
+            <div style={{ ...MONO, color:TX2, marginTop:9 }}>{DAY_S[session.day]} / {session.sub}</div>
           </div>
           <div style={{ position:"relative", width:58, height:58, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
             <Ring pct={pct} c1={PINK} size={58} thick={3}/>
@@ -388,7 +405,7 @@ function SessionView({ session, setProgress, sessionExercises, onSaveOverride, o
             </div>
           </div>
         </div>
-        <div style={{ display:"flex", position:"relative", marginTop:24, background:"transparent", borderTop:`1px solid ${BR}`, borderBottom:`1px solid ${BR}`, overflow:"hidden" }}>
+        <div style={{ display:"flex", position:"relative", marginTop:16, background:C2, border:`1px solid ${HAIR}`, borderRadius:9, overflow:"hidden" }}>
           {[{v:`${dn}/${tot}`,l:"ejercicios"},{v:String(totalSets||"—"),l:"series"},{v:pct===100?"LISTO":`${tot-dn} left`,l:pct===100?"":"restantes"}].map((s,i)=>(
             <div key={i} style={{ flex:1, padding:"12px 4px", borderRight:i<2?`1px solid ${HAIR}`:"none" }}>
               <div style={{ fontFamily:FM, fontSize:15, fontWeight:500, lineHeight:1 }}>{s.v}</div>
@@ -397,10 +414,10 @@ function SessionView({ session, setProgress, sessionExercises, onSaveOverride, o
           ))}
         </div>
       </div>
-      <div style={{ padding:"18px 14px 24px" }}>
+      <div style={{ padding:"14px 12px 22px" }}>
         {session.sessionNote && <div style={{ ...MONO, fontSize:9, color:TX2, background:C2, padding:"10px 12px", marginBottom:12, borderLeft:`3px solid ${PINK}` }}>{session.sessionNote}</div>}
         {session.anyOne && <div style={{ ...MONO, fontSize:9, color:MU, background:C1, padding:"10px 12px", marginBottom:12, border:`1px solid ${HAIR}` }}>Elige <strong style={{ color:TX2 }}>cualquiera</strong> de las opciones</div>}
-        <div style={{ ...MONO, display:"flex", justifyContent:"space-between", color:TX2, borderBottom:`1px solid ${BR}`, paddingBottom:9 }}><span>02 / EJERCICIOS</span><span>{String(items.length).padStart(2,"0")} ITEMS</span></div>
+        <div style={{ ...MONO, display:"flex", justifyContent:"space-between", color:TX2, padding:"0 2px 9px" }}><span>EJERCICIOS</span><span>{String(items.length).padStart(2,"0")} ITEMS</span></div>
         {items.map((ex, index) => <ExCard key={ex.id} ex={ex} index={index} progress={exProgress(ex,setProgress)} done={exDone(ex,setProgress)} c1={session.c1} onToggleSimple={()=>onToggleSimple(ex)} onToggleSet={setIndex=>onToggleSet(ex,setIndex)} isEdited={!!overrides[ex.id]} onSaveOverride={(id,fields)=>onSaveOverride(session.id,id,fields)} onDelete={()=>onDeleteEx(session.id,ex.id)} onMove={dir=>onMoveEx(session.id,ex.id,dir)} isFirst={index===0} isLast={index===items.length-1}/>)}
         {showAdd
           ? <AddExForm sessionId={session.id} onAdd={(sid,ex)=>{ onAddEx(sid,ex); setShowAdd(false); }} onCancel={()=>setShowAdd(false)}/>
@@ -421,15 +438,15 @@ function HoyView({ today, sessions, setProgress, onToggleSimple, onToggleSet, se
     return (
       <div style={{ padding:"30px 18px" }}>
         <div style={{ marginBottom:32, borderBottom:`1px solid ${BR}`, paddingBottom:24 }}>
-          <div style={{ ...MONO, color:PINK, marginBottom:12 }}>01 / ESTADO</div>
-          <div style={{ fontFamily:FBB, fontSize:58, fontWeight:850, letterSpacing:-3, color:TX, lineHeight:.9 }}>DESCANSO</div>
+          <div style={{ ...MONO, color:PINK, marginBottom:8 }}>ESTADO</div>
+          <div style={{ fontFamily:FBB, fontSize:36, fontWeight:800, letterSpacing:-1.8, color:TX, lineHeight:1 }}>Descanso</div>
           <div style={{ ...MONO, color:MU, marginTop:14 }}>{DAY_F[today]} / RECUPERACIÓN ACTIVA</div>
         </div>
         {next && <div style={{ ...PANEL, overflow:"hidden", marginBottom:16 }}>
           <div style={{ height:10, background:next.s.c1, borderBottom:`2px solid ${BR}` }}/>
           <div style={{ padding:"14px 16px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
             <div>
-              <div style={{ ...MONO, color:PINK, marginBottom:7 }}>02 / PRÓXIMA SESIÓN</div>
+              <div style={{ ...MONO, color:PINK, marginBottom:7 }}>PRÓXIMA SESIÓN</div>
               <div style={{ fontFamily:FBB, fontSize:26, fontWeight:800, letterSpacing:-1 }}>{next.s.label}</div>
               <div style={{ ...MONO, fontSize:9, color:TX2, marginTop:5 }}>{next.n} / {next.s.sub}</div>
             </div>
@@ -437,7 +454,7 @@ function HoyView({ today, sessions, setProgress, onToggleSimple, onToggleSet, se
           </div>
         </div>}
         <div style={{ ...PANEL, padding:"14px 16px" }}>
-          <div style={{ ...MONO, color:PINK, marginBottom:12 }}>03 / RECUPERACIÓN</div>
+          <div style={{ ...MONO, color:PINK, marginBottom:12 }}>RECUPERACIÓN</div>
           {["1.8–2g proteína / kg peso","7–9 horas de sueño","35 ml agua × kg peso","20 min caminata si aplica"].map((t,i) => (
             <div key={i} style={{ fontSize:12, color:TX2, padding:"10px 0", borderTop:i>0?`1px solid ${HAIR}`:"none", display:"flex", gap:12, alignItems:"center" }}>
               <span style={{ fontFamily:FM, color:PINK, fontSize:9 }}>{String(i+1).padStart(2,"0")}</span>{t}
@@ -477,8 +494,8 @@ function SemanaView({ sessions, setProgress, onToggleSimple, onToggleSet, sessio
   }
   return (
     <div style={{ padding:14 }}>
-      <div style={{ ...MONO, color:PINK, marginBottom:10 }}>02 / SEMANA COMPLETA</div>
-      <div style={{ fontFamily:FBB, fontSize:42, fontWeight:850, letterSpacing:-2.5, lineHeight:.95, marginBottom:24 }}>PLAN DE<br/>ENTRENAMIENTO</div>
+      <div style={{ ...MONO, color:PINK, marginBottom:7 }}>SEMANA COMPLETA</div>
+      <div style={{ fontFamily:FBB, fontSize:30, fontWeight:800, letterSpacing:-1.4, lineHeight:1, marginBottom:18 }}>Plan de entrenamiento</div>
       {sessions.map((s, sessionIndex) => {
         const { pct } = sessProgress(s, setProgress, sessionExercises);
         const { items } = resolveSession(s, sessionExercises[s.id]);
@@ -489,7 +506,7 @@ function SemanaView({ sessions, setProgress, onToggleSimple, onToggleSet, sessio
               <div>
                 <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
                   <div style={{ fontFamily:FBB, fontSize:22, fontWeight:800, letterSpacing:-.8, lineHeight:1 }}>{s.label}</div>
-                  {pct===100 && <div style={{ background:GN, color:TX, border:`1.5px solid ${BR}`, fontSize:8, fontWeight:900, padding:"3px 7px" }}>LISTO</div>}
+                  {pct===100 && <div style={{ background:GN, color:BG, border:"none", borderRadius:6, fontSize:8, fontWeight:900, padding:"3px 7px" }}>LISTO</div>}
                 </div>
                 <div style={{ ...MONO, fontSize:9, color:TX2, marginTop:6 }}>{DAY_S[s.day]} / {s.sub}</div>
                 <div style={{ display:"flex", gap:3, marginTop:8 }}>
@@ -523,15 +540,15 @@ function CarrerasView({ runs, rkm, setRkm, rmin, setRmin, rsec, setRsec, rtype, 
   const inp = INPUT;
   return (
     <div style={{ padding:"20px 14px" }}>
-      <div style={{ ...MONO, color:PINK, marginBottom:10 }}>03 / REGISTRO DE CARRERAS</div>
-      <div style={{ fontFamily:FBB, fontSize:42, fontWeight:850, letterSpacing:-2.5, lineHeight:.95, marginBottom:24 }}>VELOCIDAD<br/>Y DISTANCIA</div>
+      <div style={{ ...MONO, color:PINK, marginBottom:7 }}>REGISTRO DE CARRERAS</div>
+      <div style={{ fontFamily:FBB, fontSize:30, fontWeight:800, letterSpacing:-1.4, lineHeight:1, marginBottom:18 }}>Velocidad y distancia</div>
       {best && (
         <div style={{ ...PANEL, overflow:"hidden", marginBottom:16 }}>
           <div style={{ height:10, background:RUN_TYPES.find(t=>t.id===best.type)?.color||GN, borderBottom:`2px solid ${BR}` }}/>
           <div style={{ padding:"14px 16px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
             <div>
               <div style={{ ...MONO, color:MU, marginBottom:7 }}>MEJOR PACE / PB</div>
-              <div style={{ fontFamily:FBB, fontSize:38, fontWeight:850, letterSpacing:-2, color:PINK, lineHeight:1 }}>{best.pace}<span style={{ fontSize:10, fontFamily:FM, color:TX2 }}> MIN/KM</span></div>
+              <div style={{ fontFamily:FBB, fontSize:32, fontWeight:800, letterSpacing:-1.4, color:PINK, lineHeight:1 }}>{best.pace}<span style={{ fontSize:10, fontFamily:FM, color:TX2 }}> MIN/KM</span></div>
               <div style={{ ...MONO, fontSize:8, color:TX2, marginTop:6 }}>{best.km} KM / {best.date}</div>
             </div>
             <div style={{ textAlign:"right" }}>
@@ -561,7 +578,7 @@ function CarrerasView({ runs, rkm, setRkm, rmin, setRmin, rsec, setRsec, rtype, 
         <button onClick={onCalc} style={{ ...ACTION, background:PINK, color:C1, borderColor:PINK, width:"100%", marginTop:12 }}>Calcular pace</button>
         {pace && (
           <div style={{ ...PANEL, marginTop:12, background:C2, padding:"14px 16px", boxShadow:"none" }}>
-            <div style={{ fontFamily:FBB, fontSize:40, fontWeight:850, letterSpacing:-2, color:PINK, lineHeight:1 }}>{pace.pace}<span style={{ fontSize:10, fontFamily:FM, color:TX2 }}> MIN/KM</span></div>
+            <div style={{ fontFamily:FBB, fontSize:32, fontWeight:800, letterSpacing:-1.4, color:PINK, lineHeight:1 }}>{pace.pace}<span style={{ fontSize:10, fontFamily:FM, color:TX2 }}> MIN/KM</span></div>
             <div style={{ ...MONO, fontSize:9, color:TX2, marginTop:7 }}>{pace.kmh} KM/H / {pace.km} KM</div>
             <div style={{ display:"flex", marginTop:10, border:`1px solid ${BR}`, overflow:"hidden" }}>
               {[{d:5,l:"5K"},{d:10,l:"10K"},{d:21,l:"21K 🎯"},{d:42,l:"42K"}].map((r,i) => (
@@ -744,31 +761,31 @@ export default function GymTracker() {
   const sp = { setProgress, onToggleSimple:toggleSimple, onToggleSet:toggleSet, sessionExercises, onSaveOverride:saveOverride, onAddEx:addEx, onDeleteEx:deleteEx, onMoveEx:moveEx };
 
   return (
-    <div style={{ background:BG, fontFamily:FD, color:TX, minHeight:"100vh", maxWidth:480, margin:"0 auto", borderLeft:`1px solid ${HAIR}`, borderRight:`1px solid ${HAIR}`, paddingBottom:"calc(80px + env(safe-area-inset-bottom))" }}>
-      <style>{`*{box-sizing:border-box}::-webkit-scrollbar{display:none}input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}input[type=number]{-moz-appearance:textfield}input:focus,textarea:focus{outline:2px solid ${PINK};outline-offset:1px}button{min-height:48px}.tap:active,button:active{opacity:.68}body{background:${C2}!important}`}</style>
+    <div style={{ background:BG, fontFamily:FD, color:TX, minHeight:"100vh", maxWidth:480, margin:"0 auto", borderLeft:`1px solid ${HAIR}`, borderRight:`1px solid ${HAIR}`, paddingBottom:"calc(68px + env(safe-area-inset-bottom))" }}>
+      <style>{`*{box-sizing:border-box}::-webkit-scrollbar{display:none}input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}input[type=number]{-moz-appearance:textfield}input:focus,textarea:focus,button:focus-visible{outline:2px solid ${PINK};outline-offset:2px}.tap:active,button:active{opacity:.72}button:disabled{opacity:.38}body{background:${BG}!important}`}</style>
 
       {/* HEADER */}
-      <div style={{ padding:"16px 16px 14px", position:"sticky", top:0, zIndex:90, background:"rgba(233,223,200,.96)", borderBottom:`1px solid ${BR}` }}>
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:16 }}>
+      <div style={{ padding:"12px 14px 10px", position:"sticky", top:0, zIndex:90, background:"rgba(7,11,20,.94)", backdropFilter:"blur(16px)", borderBottom:`1px solid ${HAIR}` }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:10 }}>
           <div>
-            <div style={{ fontFamily:FBB, fontSize:29, fontWeight:900, letterSpacing:-1.7, lineHeight:1 }}>GYM<span style={{ color:PINK }}>TRACK</span></div>
-            <div style={{ ...MONO, fontSize:8, color:TX2, marginTop:8 }}>EST. 2026 / {DAY_S[todayN]} / {isoWeek().replace("2026-","")}</div>
+            <div style={{ fontFamily:FBB, fontSize:22, fontWeight:850, letterSpacing:-1, lineHeight:1 }}>GYM<span style={{ color:PINK }}>TRACK</span></div>
+            <div style={{ ...MONO, fontSize:7, color:TX2, marginTop:5 }}>{DAY_S[todayN]} / {isoWeek().replace("2026-","")}</div>
           </div>
           <div style={{ display:"flex", alignItems:"center", gap:10 }}>
             <div style={{ textAlign:"right" }}>
-              <div style={{ fontFamily:FBB, fontSize:30, fontWeight:850, letterSpacing:-1.5, lineHeight:.9 }}>{wPct}<span style={{ fontSize:10, color:PINK, fontFamily:FM }}>%</span></div>
+              <div style={{ fontFamily:FBB, fontSize:24, fontWeight:850, letterSpacing:-1, lineHeight:.9 }}>{wPct}<span style={{ fontSize:9, color:PINK, fontFamily:FM }}>%</span></div>
               <div style={{ ...MONO, fontSize:7, color:MU, marginTop:5 }}>VIGOR / {doneEx}:{totalEx}</div>
             </div>
-            <div style={{ position:"relative", width:36, height:36, display:"flex", alignItems:"center", justifyContent:"center" }}>
-              <Ring pct={wPct} c1={PINK} size={40} thick={3}/>
+            <div style={{ position:"relative", width:32, height:32, display:"flex", alignItems:"center", justifyContent:"center" }}>
+              <Ring pct={wPct} c1={PINK} size={34} thick={3}/>
             </div>
           </div>
         </div>
         {/* ROUTINE SWITCHER */}
-        <div style={{ display:"flex", border:`1px solid ${BR}` }}>
-          {[{id:"principal",label:"A / Principal"},{id:"mantenimiento",label:"B / Mantenimiento"}].map((r,i) => (
+        <div style={{ display:"flex", padding:3, gap:3, background:C1, border:`1px solid ${HAIR}`, borderRadius:10 }}>
+          {[{id:"principal",label:"A / Principal"},{id:"mantenimiento",label:"B / Mantenimiento"}].map(r => (
             <button key={r.id} className="tap" onClick={()=>switchRoutine(r.id)}
-              style={{ ...ACTION, flex:1, border:"none", borderRight:i===0?`1px solid ${BR}`:"none", background:routine===r.id?BR:"transparent", color:routine===r.id?C1:TX }}>
+              style={{ ...ACTION, minHeight:36, flex:1, border:"none", background:routine===r.id?C3:"transparent", color:routine===r.id?PINK:TX2 }}>
               {r.label}
             </button>
           ))}
@@ -781,11 +798,11 @@ export default function GymTracker() {
         {tab==="carreras" && <CarrerasView runs={runs} rkm={rkm} setRkm={setRkm} rmin={rmin} setRmin={setRmin} rsec={rsec} setRsec={setRsec} rtype={rtype} setRtype={setRtype} pace={pace} onCalc={calcPace} onSave={saveRun} onDelete={deleteRun} onClear={clearRuns}/>}
       </main>
 
-      <nav style={{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:480, minHeight:"calc(72px + env(safe-area-inset-bottom))", paddingBottom:"env(safe-area-inset-bottom)", background:C1, borderTop:`1px solid ${BR}`, display:"flex", zIndex:100 }}>
+      <nav style={{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:480, minHeight:"calc(58px + env(safe-area-inset-bottom))", paddingBottom:"env(safe-area-inset-bottom)", background:"rgba(16,23,36,.96)", backdropFilter:"blur(16px)", borderTop:`1px solid ${HAIR}`, display:"flex", zIndex:100 }}>
         {[{id:"hoy",num:"01",lbl:"Hoy"},{id:"semana",num:"02",lbl:"Semana"},{id:"carreras",num:"03",lbl:"Correr"}].map(t => (
-          <button key={t.id} className="tap" onClick={()=>{setTab(t.id);setSemId(null);}} style={{ flex:1, border:"none", borderRight:t.id!=="carreras"?`1px solid ${HAIR}`:"none", borderTop:tab===t.id?`3px solid ${PINK}`:"3px solid transparent", background:tab===t.id?BR:C1, color:tab===t.id?C1:TX, cursor:"pointer", padding:"12px 0", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:4, position:"relative" }}>
-            <div style={{ fontFamily:FM, fontSize:8, color:tab===t.id?PINK:MU, letterSpacing:1 }}>{t.num}</div>
-            <div style={{ fontFamily:FM, fontSize:10, fontWeight:500, textTransform:"uppercase", letterSpacing:1 }}>{t.lbl}</div>
+          <button key={t.id} className="tap" onClick={()=>{setTab(t.id);setSemId(null);}} style={{ flex:1, minHeight:58, border:"none", borderTop:tab===t.id?`2px solid ${PINK}`:"2px solid transparent", background:tab===t.id?"rgba(34,211,238,.08)":"transparent", color:tab===t.id?PINK:TX2, cursor:"pointer", padding:"8px 0", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:2, position:"relative" }}>
+            <div style={{ fontFamily:FM, fontSize:7, color:tab===t.id?PINK:MU, letterSpacing:1 }}>{t.num}</div>
+            <div style={{ fontFamily:FD, fontSize:10, fontWeight:700, textTransform:"uppercase", letterSpacing:.6 }}>{t.lbl}</div>
           </button>
         ))}
       </nav>

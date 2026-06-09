@@ -441,3 +441,37 @@
 - **Files or artifacts updated**: `FEATURE_LIST.json`, `PROGRESS.md`, `docs/plans/PLAN-004-swiss-neobrutalist-editorial-redesign.md`.
 - **Known risk or unresolved issue**: None.
 - **Next best step**: Proceed to planning `ui-002` (Workout history & statistics) or other features.
+
+### Session 012
+
+- **Date**: 2026-06-09
+- **Agent**: Executor (Codex, user-directed execution of V0 plan)
+- **Goal**: Execute approved `PLAN-005` using the selected dark premium SaaS direction and replace
+  oversized exercise action buttons with a compact contextual menu.
+- **Completed**:
+  - Replaced the paper editorial palette with a charcoal/navy visual system, cyan primary accent,
+    subtle borders, moderate radii, compact typography, and contained surfaces across Hoy, Semana,
+    Correr, forms, and the set tracker.
+  - Reduced the header, routine switcher, session summary, exercise cards, primary controls, and
+    bottom navigation to practical mobile proportions.
+  - Replaced the four always-visible move/edit/delete controls with one 34px three-dot menu.
+  - The menu exposes Subir, Bajar, Editar, and Borrar; closes on outside click, selection, or when
+    another exercise menu opens; preserves disabled first/last states and delete confirmation.
+  - Removed the global 48px minimum button rule while keeping inputs and critical actions usable.
+  - Updated PWA theme/background colors to `#070B14`.
+  - Updated `FEATURE_LIST.json`: `ui-010` -> `in_progress`; did not mark it passing.
+- **Verification run**:
+  - Baseline and final `./init.sh` -> exit 0; lint retains only preexisting non-blocking issues.
+  - `npm run build` and `git diff --check` -> exit 0.
+  - Browser QA at 320px, 390px, and 480px -> no horizontal overflow and zero console errors.
+  - Verified Hoy, Semana, and Correr render consistently in the dark premium design.
+  - Verified menu disabled states, outside/other-menu closing, edit form, delete confirmation,
+    series progress, and move up/down; restored test progress and exercise order afterward.
+- **Evidence captured**: Mobile screenshots showed compact exercise rows with only a three-dot menu
+  and 40px completion control; `documentElement.scrollWidth` matched each tested viewport.
+- **Commits**: `Implement PLAN-005 dark premium SaaS redesign`.
+- **Files or artifacts updated**: `src/GymTracker.jsx`, `src/index.css`, `index.html`,
+  `vite.config.js`, `FEATURE_LIST.json`, `PROGRESS.md`, `docs/plans/PLAN-005-...md`.
+- **Known risk or unresolved issue**: Reviewer must perform final regression/visual verification
+  and is the only agent allowed to mark `ui-010` as `passing`.
+- **Next best step**: Antigravity reviews PLAN-005 acceptance criteria and records pass/fail evidence.
