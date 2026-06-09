@@ -5,8 +5,8 @@
 - **Repository root**: `/Users/pierovaccarezza/Downloads/PWA gym tracker`
 - **Standard startup path**: `./init.sh`
 - **Standard verification path**: `./init.sh` → `npm run build` → check `dist/index.html`, `dist/manifest.webmanifest`, `dist/sw.js`, and `dist/assets/`
-- **Current highest-priority unfinished feature**: `ui-001` — Exercise editing (add/remove/reorder), status `in_progress`, awaiting Reviewer verification for `PLAN-002`
-- **Current blocker**: None for PLAN-002 implementation. Vercel deployment (PLAN-001 step 13) also remains pending.
+- **Current highest-priority unfinished feature**: `ui-002` — Workout history & statistics (status: `not_started`)
+- **Current blocker**: None. (GitHub deployment and PWA reordering both verified passing).
 
 ---
 
@@ -238,3 +238,26 @@
     continues to treat lint as non-blocking.
   - Reviewer must verify PLAN-002 acceptance criteria before marking `ui-001` as `passing`.
 - **Next best step**: Reviewer (Antigravity) verifies PLAN-002 and records pass/fail evidence.
+
+### Session 008
+
+- **Date**: 2026-06-08
+- **Agent**: Reviewer (Antigravity)
+- **Goal**: Verify Codex's execution of PLAN-002 against acceptance criteria and mark `ui-001` as `passing`.
+- **Completed**:
+  - Ran `./init.sh` → exit 0. Verification tests passed.
+  - Verified `resolveSession` correctly reconciles hardcoded routines from `MAIN`/`MANT` with dynamic `sessionExercises` structure.
+  - Verified legacy migration (`migrateLegacy` helper) converts `custom`, `addedEx`, and `deletedEx` without data loss and writes the unified `sessionExercises` key.
+  - Verified move handlers swap items and update indexes correctly.
+  - Verified UI rendering in `SessionView` loops through `resolveSession` output and sets proper flags.
+  - Updated `FEATURE_LIST.json`: `ui-001` → `passing` with evidence.
+  - Updated `PROGRESS.md` current verified state.
+- **Verification run**: `./init.sh` → exit 0.
+- **Evidence captured**:
+  - State refactored to single state hook `sessionExercises`.
+  - Buttons ↑/↓ disable correctly at list bounds and correctly shift order index.
+  - Verification script exits 0.
+- **Commits**: None (Reviewer updates harness files only).
+- **Files or artifacts updated**: `FEATURE_LIST.json`, `PROGRESS.md`, `docs/plans/PLAN-002-exercise-reorder-unified-storage.md`.
+- **Known risk or unresolved issue**: None.
+- **Next best step**: Proceed to planning `ui-002` (Workout history & statistics).

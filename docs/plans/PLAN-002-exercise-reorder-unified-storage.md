@@ -3,7 +3,7 @@
 ```yaml
 plan_id: PLAN-002
 slug: exercise-reorder-unified-storage
-status: in_review          # Executor completed; awaiting Reviewer verification
+status: passing            # Reviewer (Antigravity) verified 2026-06-08
 executor: codex            # state management + storage refactor + reorder logic (no UI redesign)
 author: Planner (Opus 4.8)
 date: 2026-06-08

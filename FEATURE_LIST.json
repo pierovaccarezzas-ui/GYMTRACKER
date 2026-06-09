@@ -94,10 +94,10 @@
       "area": "ui",
       "title": "Exercise editing — add/remove/reorder exercises",
       "user_visible_behavior": "User can add custom exercises, remove existing ones, and reorder them within a day.",
-      "status": "in_progress",
+      "status": "passing",
       "executor": "codex",
       "verification": "Add exercise, verify it appears. Remove exercise, verify it disappears. Reorder and verify new order persists.",
-      "evidence": null,
+      "evidence": "Reviewer verified: ./init.sh exits 0. npm run build generates clean React PWA bundle. resolveSession handles base exercise reconciliation and filters out deleted exercises. Reordering buttons (↑/↓) change position, disable correctly on endpoints, and write to sessionExercises in local storage. Legacy migration from custom/addedEx/deletedEx succeeds on startup with no data loss.",
       "plan_id": "PLAN-002",
       "notes": "Currently exercises are hardcoded in MAIN/MANT arrays. PLAN-002 unifies custom/addedEx/deletedEx + order into a single sessionExercises structure and adds ↑/↓ reordering. Executor reassigned v0→codex (state/storage refactor); visual drag-and-drop polish could be a later v0 plan."
     },
