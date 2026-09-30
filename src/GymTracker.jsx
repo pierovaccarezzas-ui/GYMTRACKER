@@ -59,7 +59,7 @@ function isoWeek() {
 // ── TOKENS ────────────────────────────────────────────────────────────────
 const BG  = "#070B14"; const C1 = "#101724"; const C2 = "#151E2D"; const C3 = "#263247";
 const BR  = "#2A374B"; const TX = "#F4F7FB"; const TX2 = "#AAB6C8"; const MU = "#6F7D91";
-const GN  = "#4ADE80"; const PINK = "#22D3EE"; const YELLOW = "#FBBF24";
+const GN  = "#4ADE80"; const PINK = "#22D3EE"; const YELLOW = "#FBBF24"; const ORANGE = "#F97316";
 const FBB = "'Inter','Arial Black',Arial,sans-serif";
 const FD  = "'Inter',system-ui,-apple-system,'Segoe UI',sans-serif";
 const FM  = "'IBM Plex Mono','SFMono-Regular',Consolas,monospace";
@@ -494,7 +494,7 @@ function HoyView({ today, sessions, setProgress, sessionExercises, onOpenSession
     );
   }
   const { pct } = sessProgress(session, setProgress, sessionExercises);
-  return <div><div style={{padding:"34px 18px 12px"}}><div style={{...MONO,color:PINK,marginBottom:10}}>HOY · {DAY_F[today]}</div><div style={{fontFamily:FBB,fontSize:42,fontWeight:850,letterSpacing:-2,lineHeight:.95}}>{session.label}</div><div style={{fontSize:14,color:TX2,marginTop:12}}>{session.sub}</div><div style={{...PANEL,marginTop:26,padding:16,display:"flex",alignItems:"center",justifyContent:"space-between"}}><div><div style={{...MONO,color:MU,fontSize:8}}>PROGRESO DE HOY</div><div style={{fontFamily:FBB,fontSize:28,fontWeight:800,marginTop:5}}>{pct}%</div></div><div style={{position:"relative",width:54,height:54,display:"flex",alignItems:"center",justifyContent:"center"}}><Ring pct={pct} c1={session.c1} size={54} thick={4}/></div></div><button onClick={()=>onOpenSession(session.id)} style={{...ACTION,width:"100%",marginTop:12,background:PINK,color:C1,borderColor:PINK}}>Ver rutina</button></div></div>;
+  return <div><div style={{padding:"34px 18px 12px"}}><div style={{...MONO,color:ORANGE,marginBottom:10}}>HOY · {DAY_F[today]}</div><div style={{fontFamily:FBB,fontSize:42,fontWeight:850,letterSpacing:-2,lineHeight:.95}}>{session.label}</div><div style={{fontSize:14,color:TX2,marginTop:12}}>{session.sub}</div><div style={{...PANEL,marginTop:26,padding:16,display:"flex",alignItems:"center",justifyContent:"space-between",borderLeft:`3px solid ${ORANGE}`}}><div><div style={{...MONO,color:MU,fontSize:8}}>PROGRESO DE HOY</div><div style={{fontFamily:FBB,fontSize:28,fontWeight:800,marginTop:5}}>{pct}%</div></div><div style={{position:"relative",width:54,height:54,display:"flex",alignItems:"center",justifyContent:"center"}}><Ring pct={pct} c1={session.c1} size={54} thick={4}/></div></div><button onClick={()=>onOpenSession(session.id)} style={{...ACTION,width:"100%",marginTop:12,background:ORANGE,color:BG,borderColor:ORANGE}}>Ver rutina</button></div></div>;
 }
 
 // ── SEMANA ────────────────────────────────────────────────────────────────
@@ -1102,7 +1102,8 @@ export default function GymTracker() {
     const ai = ids.indexOf(a.id), bi = ids.indexOf(b.id);
     return (ai < 0 ? Number.MAX_SAFE_INTEGER : ai) - (bi < 0 ? Number.MAX_SAFE_INTEGER : bi);
   });
-  const todayN = new Date().getDay();
+  const previewDay = new URLSearchParams(window.location.search).get("preview");
+  const todayN = import.meta.env.DEV && /^[0-6]$/.test(previewDay || "") ? Number(previewDay) : new Date().getDay();
   const progressSessions = activeSessions.filter(session => !session.optional || resolveSession(session, sessionExercises[session.id]).items.some(ex => exProgress(ex,setProgress) > 0));
   const activeItems = progressSessions.flatMap(s => resolveSession(s, sessionExercises[s.id]).items);
   const totalEx = activeItems.length, doneEx = activeItems.filter(ex=>exDone(ex,setProgress)).length;
