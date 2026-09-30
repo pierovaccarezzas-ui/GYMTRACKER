@@ -944,8 +944,29 @@ export default function GymTracker() {
 
   const savePassword = async () => {
     if (!supabase || !cloudSession || syncPassword.length < 8) return;
+    setSyncMode("checking");
+    const { data:sessionData, error:sessionError } = await supabase.auth.getSession();
+    if (sessionError || !sessionData.session) {
+      setSyncMode("error");
+      setSyncMessage("La sesión ya no está activa. Envía un enlace nuevo, ábrelo en este mismo navegador y vuelve a intentarlo.");
+      return;
+    }
     const { error } = await supabase.auth.updateUser({ password:syncPassword });
-    if (error) { setSyncMode("error"); setSyncMessage("No fue posible guardar la contraseña. Intenta de nuevo."); return; }
+    if (error) {
+      const reason = error.message.toLowerCase();
+      const message = reason.includes("reauthentication") || reason.includes("reauthenticate")
+        ? "Supabase exige verificar esta sesión otra vez. Envía un enlace nuevo, ábrelo en este navegador y vuelve a guardar la contraseña."
+        : reason.includes("session")
+          ? "La sesión ya no está activa. Envía un enlace nuevo, ábrelo en este mismo navegador y vuelve a intentarlo."
+          : reason.includes("same_password") || reason.includes("different from the old password")
+            ? "Esa contraseña ya está guardada. Úsala para entrar desde el PWA."
+            : reason.includes("password")
+              ? "Supabase rechazó la contraseña. Usa una de al menos 8 caracteres y vuelve a intentarlo."
+              : "No fue posible guardar la contraseña. Intenta de nuevo.";
+      setSyncMode("error");
+      setSyncMessage(message);
+      return;
+    }
     setSyncPassword("");
     setSyncMode("passwordSaved");
   };
