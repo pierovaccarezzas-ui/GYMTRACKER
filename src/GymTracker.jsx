@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, MoreVertical, Pencil, X, Trash2, Plus, Cloud, LogOut, Mail } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, MoreVertical, Pencil, X, Trash2, Plus, Cloud, LogOut, Mail, Settings } from "lucide-react";
 import { isSupabaseConfigured, supabase } from "./supabase";
 
 // ── STORAGE ───────────────────────────────────────────────────────────────
@@ -509,7 +509,7 @@ function HoyView({ today, sessions, setProgress, onToggleSimple, onToggleSet, se
 }
 
 // ── SEMANA ────────────────────────────────────────────────────────────────
-function SemanaView({ sessions, setProgress, onToggleSimple, onToggleSet, sessionExercises, onSaveOverride, onAddEx, onDeleteEx, onMoveEx, semId, setSemId, onReorder, onAddRoutine, onSaveRoutine }) {
+function SemanaView({ sessions, setProgress, onToggleSimple, onToggleSet, sessionExercises, onSaveOverride, onAddEx, onDeleteEx, onMoveEx, semId, setSemId, onReorder, onAddRoutine, onSaveRoutine, onDeleteRoutine }) {
   const [showCreate, setShowCreate] = useState(false);
   const [newLabel, setNewLabel] = useState(""); const [newSub, setNewSub] = useState(""); const [newDay, setNewDay] = useState("");
   const [dragging, setDragging] = useState(null); const holdRef = useRef(null);
@@ -527,7 +527,7 @@ function SemanaView({ sessions, setProgress, onToggleSimple, onToggleSet, sessio
             {next.label}<ChevronRight size={14}/>
           </button>}
         </div>
-        <div style={{ padding:"10px 14px", borderBottom:`1px solid ${HAIR}` }}><button onClick={()=>{ const label=window.prompt("Nombre de la rutina", session.label); if (!label?.trim()) return; const sub=window.prompt("Subtítulo", session.sub) ?? session.sub; onSaveRoutine(session.id,{label:label.trim(),sub}); }} style={{ ...ACTION, width:"100%", background:C2, display:"flex", justifyContent:"center", alignItems:"center", gap:6 }}><Pencil size={13}/> Editar rutina</button></div>
+        <div style={{ padding:"10px 14px", borderBottom:`1px solid ${HAIR}`, display:"flex", gap:8 }}><button onClick={()=>{ const label=window.prompt("Nombre de la rutina", session.label); if (!label?.trim()) return; const sub=window.prompt("Subtítulo", session.sub) ?? session.sub; onSaveRoutine(session.id,{label:label.trim(),sub}); }} style={{ ...ACTION, flex:1, background:C2 }}><Pencil size={13}/> Editar</button><button onClick={()=>{if(window.confirm(`¿Seguro que quieres borrar ${session.label}? Se eliminarán sus ejercicios y todo su progreso.`)) onDeleteRoutine(session.id);}} style={{ ...ACTION, flex:1, background:"#3B1720", color:"#FCA5A5" }}><Trash2 size={13}/> Borrar</button></div>
         <SessionView session={session} setProgress={setProgress} sessionExercises={sessionExercises} onSaveOverride={onSaveOverride} onToggleSimple={onToggleSimple} onToggleSet={onToggleSet} onAddEx={onAddEx} onDeleteEx={onDeleteEx} onMoveEx={onMoveEx}/>
       </div>
     );
@@ -562,7 +562,7 @@ function SemanaView({ sessions, setProgress, onToggleSimple, onToggleSet, sessio
                     {pct===100 ? <Check size={13} color={GN} strokeWidth={3}/> : <div style={{ fontFamily:FBB, fontSize:12, color:TX }}>{pct}<span style={{ fontSize:7 }}>%</span></div>}
                   </div>
                 </div>
-                <ChevronRight size={14} color={MU}/>
+                <div style={{display:"flex",flexDirection:"column",gap:2}}><button aria-label="Subir rutina" onClick={e=>{e.stopPropagation();const i=sessions.indexOf(s);if(i>0)onReorder(s.id,sessions[i-1].id);}} style={{background:"none",border:"none",color:MU,padding:2}}><ChevronUp size={14}/></button><button aria-label="Bajar rutina" onClick={e=>{e.stopPropagation();const i=sessions.indexOf(s);if(i<sessions.length-1)onReorder(s.id,sessions[i+1].id);}} style={{background:"none",border:"none",color:MU,padding:2}}><ChevronDown size={14}/></button></div><ChevronRight size={14} color={MU}/>
               </div>
             </div>
           </div>
@@ -760,6 +760,7 @@ export default function GymTracker() {
   const [routineOrder, setRoutineOrder] = useState({});
   const [customSessions, setCustomSessions] = useState({ principal:[], mantenimiento:[] });
   const [sessionMeta, setSessionMeta] = useState({});
+  const [deletedSessions, setDeletedSessions] = useState({ principal:[], mantenimiento:[] });
   const [runs,      setRuns     ] = useState([]);
   const [loaded,    setLoaded   ] = useState(false);
   const [semId,     setSemId    ] = useState(null);
@@ -786,10 +787,10 @@ export default function GymTracker() {
     (async () => {
       try {
         const w = isoWeek();
-        const [sw,sd,ssp,sse,sr,srt,sc,sa,sdel,sro,scs,ssm] = await Promise.all([
+        const [sw,sd,ssp,sse,sr,,sc,sa,sdel,sro,scs,ssm,sds] = await Promise.all([
           store.get("week"), store.get("done"), store.get("setProgress"), store.get("sessionExercises"),
           store.get("runs"), store.get("routine"), store.get("custom"),
-          store.get("addedEx"), store.get("deletedEx"), store.get("routineOrder"), store.get("customSessions"), store.get("sessionMeta"),
+          store.get("addedEx"), store.get("deletedEx"), store.get("routineOrder"), store.get("customSessions"), store.get("sessionMeta"), store.get("deletedSessions"),
         ]);
         const nextSessionExercises = sse ?? migrateLegacy(sc||{}, sa||{}, sdel||[], ALL_FLAT);
         setSessionExercises(nextSessionExercises);
@@ -808,10 +809,11 @@ export default function GymTracker() {
         }
         setSetProgress(nextProgress);
         setRuns(sr||[]);
-        if (srt) setRoutine(srt);
+        setRoutine("principal");
         setRoutineOrder(sro || {});
         setCustomSessions(scs || { principal:[], mantenimiento:[] });
         setSessionMeta(ssm || {});
+        setDeletedSessions(sds || { principal:[], mantenimiento:[] });
         setLoaded(true);
       } catch (err) {
         console.error("Error al cargar datos de almacenamiento local:", err);
@@ -1093,14 +1095,18 @@ export default function GymTracker() {
     setCustomSessions(next); await store.set("customSessions", next);
   };
   const saveRoutineMeta = async (id, fields) => { const next={ ...sessionMeta, [id]:{ ...(sessionMeta[id] || {}), ...fields } }; setSessionMeta(next); await store.set("sessionMeta", next); };
+  const deleteRoutine = async id => {
+    const session = activeSessions.find(item => item.id === id); if (!session) return;
+    const progress = { ...setProgress }; resolveSession(session, sessionExercises[id]).items.forEach(ex => delete progress[ex.id]);
+    await saveSetProgress(progress); const exercises={ ...sessionExercises }; delete exercises[id]; await saveSessionExercises(exercises);
+    const next={ ...deletedSessions, [routine]:[...(deletedSessions[routine] || []), id] }; setDeletedSessions(next); await store.set("deletedSessions",next); setSemId(null);
+  };
   const calcPace = () => { const k=parseFloat(rkm),m=parseInt(rmin)||0,s=parseInt(rsec)||0; if(!k||k<=0||m+s===0)return; const tot=m*60+s,ps=tot/k,pm=Math.floor(ps/60),pr=Math.round(ps%60); setPace({km:k,min:m,sec:s,pace:`${pm}:${String(pr).padStart(2,"0")}`,kmh:(k/(tot/3600)).toFixed(1)}); };
   const saveRun  = async () => { if(!pace)return; const n=[...runs,{...pace,type:rtype,date:new Date().toLocaleDateString("es-CL"),ts:Date.now()}]; setRuns(n); await store.set("runs",n); setPace(null); setRkm(""); setRmin(""); setRsec(""); };
   const deleteRun = async i => { const n=runs.filter((_,j)=>j!==i); setRuns(n); await store.set("runs",n); };
   const clearRuns = async () => { setRuns([]); await store.set("runs",[]); };
-  const switchRoutine = async r => { setRoutine(r); setSemId(null); await store.set("routine",r); };
-
-  const sourceSessions = routine === "principal" ? MAIN : MANT;
-  const allEffectiveSessions = [...sourceSessions, ...(customSessions[routine] || [])].map(session => ({ ...session, ...(sessionMeta[session.id] || {}) }));
+  const sourceSessions = MAIN;
+  const allEffectiveSessions = [...sourceSessions, ...(customSessions[routine] || [])].filter(session => !(deletedSessions[routine] || []).includes(session.id)).map(session => ({ ...session, ...(sessionMeta[session.id] || {}) }));
   const ids = routineOrder[routine] || [];
   const activeSessions = [...allEffectiveSessions].sort((a,b) => {
     const ai = ids.indexOf(a.id), bi = ids.indexOf(b.id);
@@ -1145,25 +1151,18 @@ export default function GymTracker() {
           </button>
         </div>
         <SyncPanel open={syncOpen} onClose={()=>setSyncOpen(false)} session={cloudSession} mode={syncMode} message={syncMessage} email={syncEmail} setEmail={setSyncEmail} password={syncPassword} setPassword={setSyncPassword} onPasswordSignIn={signInWithPassword} onSendLink={sendMagicLink} onSavePassword={savePassword} onUpload={uploadLocalState} onUseCloud={useCloudCopy} onSignOut={signOutCloud}/>
-        {/* ROUTINE SWITCHER */}
-        <div style={{ display:"flex", padding:3, gap:3, background:C1, border:`1px solid ${HAIR}`, borderRadius:10 }}>
-          {[{id:"principal",label:"A / Principal"},{id:"mantenimiento",label:"B / Mantenimiento"}].map(r => (
-            <button key={r.id} className="tap" onClick={()=>switchRoutine(r.id)}
-              style={{ ...ACTION, minHeight:36, flex:1, border:"none", background:routine===r.id?C3:"transparent", color:routine===r.id?PINK:TX2 }}>
-              {r.label}
-            </button>
-          ))}
-        </div>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"3px 0 1px" }}><div style={{ ...MONO, color:MU, fontSize:8 }}>ENTRENAMIENTO</div><button onClick={()=>setTab("config")} aria-label="Configuración" style={{ background:"none", border:"none", color:TX2, padding:4, cursor:"pointer" }}><Settings size={16}/></button></div>
       </div>
 
       <main>
         {tab==="hoy"      && <HoyView today={todayN} sessions={activeSessions} {...sp}/>}
-        {tab==="semana"   && <SemanaView sessions={activeSessions} {...sp} semId={semId} setSemId={setSemId} onReorder={reorderRoutine} onAddRoutine={addRoutine} onSaveRoutine={saveRoutineMeta}/>}
+        {tab==="semana"   && <SemanaView sessions={activeSessions} {...sp} semId={semId} setSemId={setSemId} onReorder={reorderRoutine} onAddRoutine={addRoutine} onSaveRoutine={saveRoutineMeta} onDeleteRoutine={deleteRoutine}/>}
+        {tab==="config" && <div style={{padding:16}}><div style={{...MONO,color:PINK,marginBottom:8}}>CONFIGURACIÓN</div><div style={{fontFamily:FBB,fontSize:30,fontWeight:800,letterSpacing:-1.2,marginBottom:18}}>Cuenta</div><div style={{...PANEL,padding:16}}><div style={{fontSize:13,fontWeight:700}}>{cloudSession?.user?.email || "Sin sesión"}</div><div style={{fontSize:11,color:TX2,marginTop:6}}>Tus entrenamientos se sincronizan de forma privada.</div><button onClick={signOutCloud} style={{...ACTION,width:"100%",background:C2,marginTop:16,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}><LogOut size={14}/> Cerrar sesión</button></div></div>}
         {tab==="carreras" && <CarrerasView runs={runs} rkm={rkm} setRkm={setRkm} rmin={rmin} setRmin={setRmin} rsec={rsec} setRsec={setRsec} rtype={rtype} setRtype={setRtype} pace={pace} onCalc={calcPace} onSave={saveRun} onDelete={deleteRun} onClear={clearRuns}/>}
       </main>
 
       <nav style={{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:480, minHeight:"calc(58px + env(safe-area-inset-bottom))", paddingBottom:"env(safe-area-inset-bottom)", background:"rgba(16,23,36,.96)", backdropFilter:"blur(16px)", borderTop:`1px solid ${HAIR}`, display:"flex", zIndex:100 }}>
-        {[{id:"hoy",num:"01",lbl:"Hoy"},{id:"semana",num:"02",lbl:"Semana"},{id:"carreras",num:"03",lbl:"Correr"}].map(t => (
+        {[{id:"hoy",num:"01",lbl:"Inicio"},{id:"semana",num:"02",lbl:"Semana"},{id:"carreras",num:"03",lbl:"Correr"}].map(t => (
           <button key={t.id} className="tap" onClick={()=>{setTab(t.id);setSemId(null);}} style={{ flex:1, minHeight:58, border:"none", borderTop:tab===t.id?`2px solid ${PINK}`:"2px solid transparent", background:tab===t.id?"rgba(34,211,238,.08)":"transparent", color:tab===t.id?PINK:TX2, cursor:"pointer", padding:"8px 0", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:2, position:"relative" }}>
             <div style={{ fontFamily:FM, fontSize:7, color:tab===t.id?PINK:MU, letterSpacing:1 }}>{t.num}</div>
             <div style={{ fontFamily:FD, fontSize:10, fontWeight:700, textTransform:"uppercase", letterSpacing:.6 }}>{t.lbl}</div>
