@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, MoreVertical, Pencil, X, Trash2, Plus, Cloud, LogOut, Mail, Settings } from "lucide-react";
 import { isSupabaseConfigured, supabase } from "./supabase";
 
@@ -87,6 +87,11 @@ const MAIN = [
     { id:"lo6", name:"Plancha",                    type:"strength", sets:3, reps:"45 s",  target:"45 seg" },
   ]},
   { id:"lowerB", label:"LOWER B", sub:"Cuád + Gemelos + Cadera", c1:"#00E096", c2:"#00B4D8", optional:true, anyOne:false, exercises:[
+    { id:"lb2-w1", name:"Hip circles de pie", type:"warmup", sets:1, reps:"10/lado", target:"Movilidad de cadera" },
+    { id:"lb2-w2", name:"Sentadilla de copa lenta", type:"warmup", sets:1, reps:"15", target:"Control y rango" },
+    { id:"lb2-w3", name:"Estocada con rotación de torso", type:"warmup", sets:1, reps:"8/lado", target:"Movilidad" },
+    { id:"lb2-w4", name:"Movilidad de tobillo contra la pared", type:"warmup", sets:1, reps:"10/lado", target:"Rango de tobillo" },
+    { id:"lb2-w5", name:"Caminata lateral con banda", type:"warmup", sets:2, reps:"12 pasos/lado", target:"Activación de glúteo medio" },
     { id:"lb2-1", name:"Sentadilla Hack",                     type:"strength", sets:4, reps:"8–10",         target:"Cuádriceps · carga moderada" },
     { id:"lb2-2", name:"Extensión de Cuádriceps",              type:"strength", sets:3, reps:"12–15",        target:"Pausa 1 seg arriba" },
     { id:"lb2-3", name:"Step-down Lateral desde Cajón",        type:"strength", sets:3, reps:"10/pierna",    target:"Bajada lenta 3 seg · rodilla alineada" },
@@ -910,9 +915,8 @@ export default function GymTracker() {
         if (active) { setSyncConfirmed(true); setSyncMode("synced"); }
         return;
       }
-      cloudConflictRef.current = data.payload;
-      setSyncConfirmed(false);
-      setSyncMode("conflict");
+      await applyCloudPayload(data.payload);
+      if (active) window.location.reload();
     })();
     return () => { active = false; };
   }, [loaded, cloudUserId]);
@@ -1102,6 +1106,17 @@ export default function GymTracker() {
     const ai = ids.indexOf(a.id), bi = ids.indexOf(b.id);
     return (ai < 0 ? Number.MAX_SAFE_INTEGER : ai) - (bi < 0 ? Number.MAX_SAFE_INTEGER : bi);
   });
+  const syncRelationalData = useCallback(async () => {
+    if (!supabase || !cloudUserId) return;
+    const sessions = activeSessions.map(session => ({ user_id:cloudUserId, session_id:session.id, label:session.label, subtitle:session.sub || null, day_of_week:session.day ?? null, optional:!!session.optional, updated_at:new Date().toISOString() }));
+    const exercises = activeSessions.flatMap(session => resolveSession(session, sessionExercises[session.id]).items.map(ex => ({ user_id:cloudUserId, session_id:session.id, exercise_id:ex.id, name:ex.name, exercise_type:ex.type || null, target:ex.target || null, sets_target:ex.sets || null, reps:ex.reps || null, completed_sets:exProgress(ex,setProgress), updated_at:new Date().toISOString() })));
+    const runRows = runs.map((run,index) => ({ user_id:cloudUserId, run_id:String(run.ts || `${run.date}-${index}`), run_date:run.date || null, run_type:run.type || null, km:run.km || null, minutes:run.min || null, seconds:run.sec || null, pace:run.pace || null, kmh:run.kmh || null, recorded_at:new Date().toISOString() }));
+    if (sessions.length) await supabase.from("training_sessions").upsert(sessions,{onConflict:"user_id,session_id"});
+    if (exercises.length) await supabase.from("exercise_progress").upsert(exercises,{onConflict:"user_id,session_id,exercise_id"});
+    if (runRows.length) await supabase.from("run_entries").upsert(runRows,{onConflict:"user_id,run_id"});
+  }, [cloudUserId, activeSessions, sessionExercises, setProgress, runs]);
+  useEffect(() => { if (loaded && cloudUserId && syncMode === "synced") void syncRelationalData(); }, [loaded, cloudUserId, syncMode, syncRelationalData]);
+
   const previewDay = new URLSearchParams(window.location.search).get("preview");
   const todayN = import.meta.env.DEV && /^[0-6]$/.test(previewDay || "") ? Number(previewDay) : new Date().getDay();
   const progressSessions = activeSessions.filter(session => !session.optional || resolveSession(session, sessionExercises[session.id]).items.some(ex => exProgress(ex,setProgress) > 0));
