@@ -475,21 +475,12 @@ function SessionView({ session, setProgress, sessionExercises, onSaveOverride, o
 
 // ── HOY ───────────────────────────────────────────────────────────────────
 function HoyView({ today, sessions, setProgress, sessionExercises, onOpenSession }) {
-  const todayKey = new Date().toLocaleDateString("es-CL");
-  const [selection, setSelection] = useState({ date:"", id:null });
-  const selectedId = selection.date === todayKey ? selection.id : null;
-  const scheduled = sessions.find(s => s.day === today);
-  const session = sessions.find(s => s.id === selectedId) || scheduled;
-  const chips = (
-    <div style={{ display:"flex", gap:7, overflowX:"auto", padding:"12px 14px 10px", borderBottom:`1px solid ${HAIR}` }}>
-      {sessions.map(s => <button key={s.id} onClick={()=>setSelection({ date:todayKey, id:s.id })} style={{ ...ACTION, whiteSpace:"nowrap", minHeight:32, padding:"0 10px", flexShrink:0, background:session?.id===s.id?C3:C1, color:session?.id===s.id?PINK:TX2, borderColor:session?.id===s.id?PINK:HAIR }}>{s.label}</button>)}
-    </div>
-  );
+  const session = sessions.find(s => s.day === today);
+
   if (!session) {
     const next = (() => { for(let i=1;i<=7;i++){const d=(today+i)%7;const s=sessions.find(x=>x.day===d);if(s)return{s,n:DAY_F[d]};} return null; })();
     return (
       <div>
-        {chips}
         <div style={{ padding:"30px 18px" }}>
           <div style={{ marginBottom:32, borderBottom:`1px solid ${BR}`, paddingBottom:24 }}>
             <div style={{ ...MONO, color:PINK, marginBottom:8 }}>ESTADO</div>
@@ -503,7 +494,7 @@ function HoyView({ today, sessions, setProgress, sessionExercises, onOpenSession
     );
   }
   const { pct } = sessProgress(session, setProgress, sessionExercises);
-  return <div><div style={{padding:"34px 18px 12px"}}><div style={{...MONO,color:PINK,marginBottom:10}}>HOY · {DAY_F[today]}</div><div style={{fontFamily:FBB,fontSize:42,fontWeight:850,letterSpacing:-2,lineHeight:.95}}>{session.label}</div><div style={{fontSize:14,color:TX2,marginTop:12}}>{session.sub}</div><div style={{...PANEL,marginTop:26,padding:16,display:"flex",alignItems:"center",justifyContent:"space-between"}}><div><div style={{...MONO,color:MU,fontSize:8}}>PROGRESO DE HOY</div><div style={{fontFamily:FBB,fontSize:28,fontWeight:800,marginTop:5}}>{pct}%</div></div><div style={{position:"relative",width:54,height:54,display:"flex",alignItems:"center",justifyContent:"center"}}><Ring pct={pct} c1={session.c1} size={54} thick={4}/></div></div><button onClick={()=>onOpenSession(session.id)} style={{...ACTION,width:"100%",marginTop:12,background:PINK,color:C1,borderColor:PINK}}>Ver rutina</button></div>{chips}</div>;
+  return <div><div style={{padding:"34px 18px 12px"}}><div style={{...MONO,color:PINK,marginBottom:10}}>HOY · {DAY_F[today]}</div><div style={{fontFamily:FBB,fontSize:42,fontWeight:850,letterSpacing:-2,lineHeight:.95}}>{session.label}</div><div style={{fontSize:14,color:TX2,marginTop:12}}>{session.sub}</div><div style={{...PANEL,marginTop:26,padding:16,display:"flex",alignItems:"center",justifyContent:"space-between"}}><div><div style={{...MONO,color:MU,fontSize:8}}>PROGRESO DE HOY</div><div style={{fontFamily:FBB,fontSize:28,fontWeight:800,marginTop:5}}>{pct}%</div></div><div style={{position:"relative",width:54,height:54,display:"flex",alignItems:"center",justifyContent:"center"}}><Ring pct={pct} c1={session.c1} size={54} thick={4}/></div></div><button onClick={()=>onOpenSession(session.id)} style={{...ACTION,width:"100%",marginTop:12,background:PINK,color:C1,borderColor:PINK}}>Ver rutina</button></div></div>;
 }
 
 // ── SEMANA ────────────────────────────────────────────────────────────────
