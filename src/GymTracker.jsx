@@ -49,6 +49,8 @@ function hasTrainingData(payload) {
   });
 }
 
+function nowStamp() { return Date.now(); }
+
 function isoWeek() {
   const d = new Date(), t = new Date(d);
   t.setDate(d.getDate() + 4 - (d.getDay() || 7));
@@ -568,7 +570,7 @@ function SemanaView({ sessions, setProgress, onToggleSimple, onToggleSet, sessio
 }
 
 // ── CARRERAS ──────────────────────────────────────────────────────────────
-function CarrerasView({ runs, rkm, setRkm, rmin, setRmin, rsec, setRsec, rtype, setRtype, pace, onCalc, onSave, onDelete, onClear }) {
+function CarrerasView({ runs, rkm, setRkm, rmin, setRmin, rsec, setRsec, rtype, setRtype, pace, onCalc, onSave, onCancel, onDelete, onClear }) {
   const [cfm, setCfm] = useState(false);
   const toS = s => { const [m,p]=s.split(":").map(Number); return m*60+p; };
   const best = runs.length ? runs.reduce((b,r) => toS(r.pace) < toS(b.pace) ? r : b) : null;
@@ -629,7 +631,7 @@ function CarrerasView({ runs, rkm, setRkm, rmin, setRmin, rsec, setRsec, rtype, 
                 <button key={t.id} onClick={()=>setRtype(t.id)} style={{ ...ACTION, flex:1, background:rtype===t.id?BR:C1, color:rtype===t.id?C1:TX }}>{t.label}</button>
               ))}
             </div>
-            <button onClick={onSave} style={{ ...ACTION, background:PINK, color:C1, borderColor:PINK, width:"100%", marginTop:12 }}>Guardar / Confirmar</button>
+            <div style={{display:"flex",gap:8,marginTop:12}}><button onClick={onCancel} style={{...ACTION,flex:1,background:C1}}>Cancelar</button><button onClick={()=>{if(window.confirm(`¿Registrar esta carrera como ${RUN_TYPES.find(t=>t.id===rtype)?.label || "sesión"}?`))onSave();}} style={{ ...ACTION, flex:2, background:PINK, color:C1, borderColor:PINK }}>Guardar</button></div>
           </div>
         )}
       </div>
@@ -1096,7 +1098,8 @@ export default function GymTracker() {
     const next={ ...deletedSessions, [routine]:[...(deletedSessions[routine] || []), id] }; setDeletedSessions(next); await store.set("deletedSessions",next); setSemId(null);
   };
   const calcPace = () => { const k=parseFloat(rkm),m=parseInt(rmin)||0,s=parseInt(rsec)||0; if(!k||k<=0||m+s===0)return; const tot=m*60+s,ps=tot/k,pm=Math.floor(ps/60),pr=Math.round(ps%60); setPace({km:k,min:m,sec:s,pace:`${pm}:${String(pr).padStart(2,"0")}`,kmh:(k/(tot/3600)).toFixed(1)}); };
-  const saveRun  = async () => { if(!pace)return; const n=[...runs,{...pace,type:rtype,date:new Date().toLocaleDateString("es-CL"),ts:Date.now()}]; setRuns(n); await store.set("runs",n); setPace(null); setRkm(""); setRmin(""); setRsec(""); };
+  const saveRun  = async () => { if(!pace)return; const n=[...runs,{...pace,type:rtype,date:new Date().toLocaleDateString("es-CL"),ts:nowStamp()}]; setRuns(n); await store.set("runs",n); const linkedId = rtype === "hiit" ? "hiit" : rtype === "z2" ? "z2" : null; if (linkedId) { const linked=activeSessions.find(session=>session.id===linkedId); const exercise=linked && resolveSession(linked,sessionExercises[linked.id]).items[0]; if (exercise) await saveSetProgress({ ...setProgress, [exercise.id]:exTotal(exercise) }); } setPace(null); setRkm(""); setRmin(""); setRsec(""); };
+  const cancelRun = () => { setPace(null); setRkm(""); setRmin(""); setRsec(""); };
   const deleteRun = async i => { const n=runs.filter((_,j)=>j!==i); setRuns(n); await store.set("runs",n); };
   const clearRuns = async () => { setRuns([]); await store.set("runs",[]); };
   const sourceSessions = MAIN;
@@ -1113,6 +1116,8 @@ export default function GymTracker() {
     const runRows = runs.map((run,index) => ({ user_id:cloudUserId, run_id:String(run.ts || `${run.date}-${index}`), run_date:run.date || null, run_type:run.type || null, km:run.km || null, minutes:run.min || null, seconds:run.sec || null, pace:run.pace || null, kmh:run.kmh || null, recorded_at:new Date().toISOString() }));
     if (sessions.length) await supabase.from("training_sessions").upsert(sessions,{onConflict:"user_id,session_id"});
     if (exercises.length) await supabase.from("exercise_progress").upsert(exercises,{onConflict:"user_id,session_id,exercise_id"});
+    const history = exercises.filter(ex => ex.completed_sets > 0).map(ex => ({ user_id:ex.user_id, week_id:isoWeek(), session_id:ex.session_id, exercise_id:ex.exercise_id, name:ex.name, target:ex.target, sets_target:ex.sets_target, completed_sets:ex.completed_sets, recorded_at:new Date().toISOString() }));
+    if (history.length) await supabase.from("exercise_history").upsert(history,{onConflict:"user_id,week_id,session_id,exercise_id"});
     if (runRows.length) await supabase.from("run_entries").upsert(runRows,{onConflict:"user_id,run_id"});
   }, [cloudUserId, activeSessions, sessionExercises, setProgress, runs]);
   useEffect(() => { if (loaded && cloudUserId && syncMode === "synced") void syncRelationalData(); }, [loaded, cloudUserId, syncMode, syncRelationalData]);
@@ -1164,7 +1169,7 @@ export default function GymTracker() {
         {tab==="hoy"      && <HoyView today={todayN} sessions={activeSessions} {...sp} onOpenSession={id=>{setSemId(id);setTab("semana");}}/>}
         {tab==="semana"   && <SemanaView sessions={activeSessions} {...sp} semId={semId} setSemId={setSemId} onReorder={reorderRoutine} onAddRoutine={addRoutine} onSaveRoutine={saveRoutineMeta} onDeleteRoutine={deleteRoutine}/>}
         {tab==="config" && <div style={{padding:16}}><div style={{...MONO,color:PINK,marginBottom:8}}>CONFIGURACIÓN</div><div style={{fontFamily:FBB,fontSize:30,fontWeight:800,letterSpacing:-1.2,marginBottom:18}}>Cuenta</div><div style={{...PANEL,padding:16}}><div style={{fontSize:13,fontWeight:700}}>{cloudSession?.user?.email || "Sin sesión"}</div><div style={{fontSize:11,color:TX2,marginTop:6}}>Tus entrenamientos se sincronizan de forma privada.</div><button onClick={signOutCloud} style={{...ACTION,width:"100%",background:C2,marginTop:16,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}><LogOut size={14}/> Cerrar sesión</button></div></div>}
-        {tab==="carreras" && <CarrerasView runs={runs} rkm={rkm} setRkm={setRkm} rmin={rmin} setRmin={setRmin} rsec={rsec} setRsec={setRsec} rtype={rtype} setRtype={setRtype} pace={pace} onCalc={calcPace} onSave={saveRun} onDelete={deleteRun} onClear={clearRuns}/>}
+        {tab==="carreras" && <CarrerasView runs={runs} rkm={rkm} setRkm={setRkm} rmin={rmin} setRmin={setRmin} rsec={rsec} setRsec={setRsec} rtype={rtype} setRtype={setRtype} pace={pace} onCalc={calcPace} onSave={saveRun} onCancel={cancelRun} onDelete={deleteRun} onClear={clearRuns}/>}
       </main>
 
       <nav style={{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:480, minHeight:"calc(58px + env(safe-area-inset-bottom))", paddingBottom:"env(safe-area-inset-bottom)", background:"rgba(16,23,36,.96)", backdropFilter:"blur(16px)", borderTop:`1px solid ${HAIR}`, display:"flex", zIndex:100 }}>
