@@ -670,15 +670,15 @@ function CarrerasView({ runs, rkm, setRkm, rmin, setRmin, rsec, setRsec, rtype, 
 }
 
 // ── SINCRONIZACIÓN ────────────────────────────────────────────────────────
-function SyncPanel({ open, onClose, session, mode, message, email, setEmail, onSendLink, onUpload, onUseCloud, onSignOut }) {
+function SyncPanel({ open, onClose, session, mode, message, email, setEmail, code, setCode, onSendLink, onVerifyCode, onUpload, onUseCloud, onSignOut }) {
   if (!open) return null;
   const status = {
     checking: "Comprobando la copia de Supabase…",
     synced: "Tus cambios se guardan automáticamente en todos tus dispositivos.",
     import: "Encontramos datos locales. Súbelos solo si esta es la copia que quieres conservar.",
     conflict: "Hay datos distintos en este dispositivo y en Supabase. Elige cuál conservar antes de continuar.",
-    sending: "Enviando el enlace de acceso…",
-    sent: "Revisa tu correo y abre el enlace desde este mismo dispositivo.",
+    sending: "Enviando el código de acceso…",
+    sent: "Revisa tu correo, copia el código y escríbelo aquí sin salir del PWA.",
     error: message || "No fue posible sincronizar ahora.",
   }[mode];
 
@@ -694,7 +694,11 @@ function SyncPanel({ open, onClose, session, mode, message, email, setEmail, onS
         <>
           <div style={{ fontSize:11, color:TX2, lineHeight:1.45, marginBottom:10 }}>Usa el mismo correo en tu teléfono y computador para guardar una sola copia.</div>
           <input value={email} onChange={event=>setEmail(event.target.value)} type="email" inputMode="email" placeholder="tu@correo.com" style={{ ...INPUT, marginBottom:8 }}/>
-          <button onClick={onSendLink} disabled={!email.trim() || mode==="sending"} style={{ ...ACTION, width:"100%", background:PINK, color:C1, borderColor:PINK, display:"flex", justifyContent:"center", alignItems:"center", gap:6 }}><Mail size={13}/>Enviar enlace de acceso</button>
+          <button onClick={onSendLink} disabled={!email.trim() || mode==="sending"} style={{ ...ACTION, width:"100%", background:PINK, color:C1, borderColor:PINK, display:"flex", justifyContent:"center", alignItems:"center", gap:6 }}><Mail size={13}/>Enviar código de acceso</button>
+          {mode==="sent" && <div style={{ display:"flex", gap:8, marginTop:9 }}>
+            <input value={code} onChange={event=>setCode(event.target.value.replace(/\D/g, "").slice(0, 8))} type="text" inputMode="numeric" autoComplete="one-time-code" placeholder="Código" style={{ ...INPUT, flex:1, minWidth:0 }}/>
+            <button onClick={onVerifyCode} disabled={!code.trim()} style={{ ...ACTION, minHeight:42, background:C3, padding:"0 12px" }}>Confirmar</button>
+          </div>}
           {status && <div style={{ fontSize:10, color:mode==="error"?"#FB7185":TX2, lineHeight:1.45, marginTop:9 }}>{status}</div>}
         </>
       ) : (
@@ -727,6 +731,7 @@ export default function GymTracker() {
   const [cloudSession, setCloudSession] = useState(null);
   const [syncOpen, setSyncOpen] = useState(false);
   const [syncEmail, setSyncEmail] = useState("");
+  const [syncCode, setSyncCode] = useState("");
   const [syncMode, setSyncMode] = useState(isSupabaseConfigured ? "checking" : "error");
   const [syncMessage, setSyncMessage] = useState("");
   const syncModeRef = useRef(syncMode);
@@ -920,8 +925,16 @@ export default function GymTracker() {
       email:syncEmail.trim(),
       options:{ emailRedirectTo:window.location.origin },
     });
-    if (error) { setSyncMode("error"); setSyncMessage("No fue posible enviar el enlace. Revisa el correo e intenta de nuevo."); return; }
+    if (error) { setSyncMode("error"); setSyncMessage("No fue posible enviar el código. Revisa el correo e intenta de nuevo."); return; }
+    setSyncCode("");
     setSyncMode("sent");
+  };
+
+  const verifyEmailCode = async () => {
+    if (!supabase || !syncEmail.trim() || !syncCode.trim()) return;
+    setSyncMode("checking");
+    const { error } = await supabase.auth.verifyOtp({ email:syncEmail.trim(), token:syncCode.trim(), type:"email" });
+    if (error) { setSyncMode("error"); setSyncMessage("El código no es válido o ya venció. Solicita uno nuevo."); }
   };
 
   const useCloudCopy = async () => {
@@ -1035,7 +1048,7 @@ export default function GymTracker() {
             <Cloud size={13}/>{cloudSession ? (syncMode==="synced" ? "Sincronizado" : "Pendiente") : "Sincronizar"}
           </button>
         </div>
-        <SyncPanel open={syncOpen} onClose={()=>setSyncOpen(false)} session={cloudSession} mode={syncMode} message={syncMessage} email={syncEmail} setEmail={setSyncEmail} onSendLink={sendMagicLink} onUpload={uploadLocalState} onUseCloud={useCloudCopy} onSignOut={signOutCloud}/>
+        <SyncPanel open={syncOpen} onClose={()=>setSyncOpen(false)} session={cloudSession} mode={syncMode} message={syncMessage} email={syncEmail} setEmail={setSyncEmail} code={syncCode} setCode={setSyncCode} onSendLink={sendMagicLink} onVerifyCode={verifyEmailCode} onUpload={uploadLocalState} onUseCloud={useCloudCopy} onSignOut={signOutCloud}/>
         {/* ROUTINE SWITCHER */}
         <div style={{ display:"flex", padding:3, gap:3, background:C1, border:`1px solid ${HAIR}`, borderRadius:10 }}>
           {[{id:"principal",label:"A / Principal"},{id:"mantenimiento",label:"B / Mantenimiento"}].map(r => (
