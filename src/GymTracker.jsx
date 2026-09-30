@@ -474,7 +474,7 @@ function SessionView({ session, setProgress, sessionExercises, onSaveOverride, o
 }
 
 // ── HOY ───────────────────────────────────────────────────────────────────
-function HoyView({ today, sessions, setProgress, onToggleSimple, onToggleSet, sessionExercises, onSaveOverride, onAddEx, onDeleteEx, onMoveEx }) {
+function HoyView({ today, sessions, setProgress, sessionExercises, onOpenSession }) {
   const todayKey = new Date().toLocaleDateString("es-CL");
   const [selection, setSelection] = useState({ date:"", id:null });
   const selectedId = selection.date === todayKey ? selection.id : null;
@@ -502,7 +502,8 @@ function HoyView({ today, sessions, setProgress, onToggleSimple, onToggleSet, se
       </div>
     );
   }
-  return <div><div style={{ ...MONO, color:MU, padding:"14px 18px 2px" }}>HOY · {DAY_F[today]}</div>{chips}<SessionView minimal session={session} setProgress={setProgress} sessionExercises={sessionExercises} onSaveOverride={onSaveOverride} onToggleSimple={onToggleSimple} onToggleSet={onToggleSet} onAddEx={onAddEx} onDeleteEx={onDeleteEx} onMoveEx={onMoveEx}/></div>;
+  const { pct } = sessProgress(session, setProgress, sessionExercises);
+  return <div><div style={{padding:"34px 18px 12px"}}><div style={{...MONO,color:PINK,marginBottom:10}}>HOY · {DAY_F[today]}</div><div style={{fontFamily:FBB,fontSize:42,fontWeight:850,letterSpacing:-2,lineHeight:.95}}>{session.label}</div><div style={{fontSize:14,color:TX2,marginTop:12}}>{session.sub}</div><div style={{...PANEL,marginTop:26,padding:16,display:"flex",alignItems:"center",justifyContent:"space-between"}}><div><div style={{...MONO,color:MU,fontSize:8}}>PROGRESO DE HOY</div><div style={{fontFamily:FBB,fontSize:28,fontWeight:800,marginTop:5}}>{pct}%</div></div><div style={{position:"relative",width:54,height:54,display:"flex",alignItems:"center",justifyContent:"center"}}><Ring pct={pct} c1={session.c1} size={54} thick={4}/></div></div><button onClick={()=>onOpenSession(session.id)} style={{...ACTION,width:"100%",marginTop:12,background:PINK,color:C1,borderColor:PINK}}>Ver rutina</button></div>{chips}</div>;
 }
 
 // ── SEMANA ────────────────────────────────────────────────────────────────
@@ -1153,7 +1154,7 @@ export default function GymTracker() {
       </div>
 
       <main>
-        {tab==="hoy"      && <HoyView today={todayN} sessions={activeSessions} {...sp}/>}
+        {tab==="hoy"      && <HoyView today={todayN} sessions={activeSessions} {...sp} onOpenSession={id=>{setSemId(id);setTab("semana");}}/>}
         {tab==="semana"   && <SemanaView sessions={activeSessions} {...sp} semId={semId} setSemId={setSemId} onReorder={reorderRoutine} onAddRoutine={addRoutine} onSaveRoutine={saveRoutineMeta} onDeleteRoutine={deleteRoutine}/>}
         {tab==="config" && <div style={{padding:16}}><div style={{...MONO,color:PINK,marginBottom:8}}>CONFIGURACIÓN</div><div style={{fontFamily:FBB,fontSize:30,fontWeight:800,letterSpacing:-1.2,marginBottom:18}}>Cuenta</div><div style={{...PANEL,padding:16}}><div style={{fontSize:13,fontWeight:700}}>{cloudSession?.user?.email || "Sin sesión"}</div><div style={{fontSize:11,color:TX2,marginTop:6}}>Tus entrenamientos se sincronizan de forma privada.</div><button onClick={signOutCloud} style={{...ACTION,width:"100%",background:C2,marginTop:16,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}><LogOut size={14}/> Cerrar sesión</button></div></div>}
         {tab==="carreras" && <CarrerasView runs={runs} rkm={rkm} setRkm={setRkm} rmin={rmin} setRmin={setRmin} rsec={rsec} setRsec={setRsec} rtype={rtype} setRtype={setRtype} pace={pace} onCalc={calcPace} onSave={saveRun} onDelete={deleteRun} onClear={clearRuns}/>}
