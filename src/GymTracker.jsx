@@ -81,6 +81,15 @@ const MAIN = [
     { id:"lo5", name:"Gemelos Sentado (máquina)",  type:"strength", sets:3, reps:"15",    target:"Prog." },
     { id:"lo6", name:"Plancha",                    type:"strength", sets:3, reps:"45 s",  target:"45 seg" },
   ]},
+  { id:"lowerB", label:"LOWER B", sub:"Cuád + Gemelos + Cadera", c1:"#00E096", c2:"#00B4D8", optional:true, anyOne:false, exercises:[
+    { id:"lb2-1", name:"Sentadilla Hack",                     type:"strength", sets:4, reps:"8–10",         target:"Cuádriceps · carga moderada" },
+    { id:"lb2-2", name:"Extensión de Cuádriceps",              type:"strength", sets:3, reps:"12–15",        target:"Pausa 1 seg arriba" },
+    { id:"lb2-3", name:"Step-down Lateral desde Cajón",        type:"strength", sets:3, reps:"10/pierna",    target:"Bajada lenta 3 seg · rodilla alineada" },
+    { id:"lb2-4", name:"Abducción de Cadera (máquina)",        type:"strength", sets:3, reps:"12–15",        target:"Glúteo medio · fascia lata" },
+    { id:"lb2-5", name:"Gemelos en Prensa",                    type:"strength", sets:4, reps:"12–15",        target:"Pausa 2 seg abajo" },
+    { id:"lb2-6", name:"Gemelos Sentado (máquina)",            type:"strength", sets:3, reps:"15–20",        target:"Rango completo" },
+    { id:"lb2-7", name:"Plancha Lateral",                      type:"strength", sets:3, reps:"30–40 s/lado", target:"Oblicuos y glúteo medio" },
+  ]},
   { id:"upperB", label:"UPPER B", sub:"Hipertrofia",    day:4, c1:"#FF8C00", c2:"#FF4500", anyOne:false, exercises:[
     { id:"ub1", name:"Press Inclinado Mancuernas", type:"strength", sets:4, reps:"8–10",  target:"25 kg/mano" },
     { id:"ub2", name:"Remo Mancuerna Unilateral",  type:"strength", sets:4, reps:"10",    target:"20 kg/lado" },
@@ -428,7 +437,7 @@ function SessionView({ session, setProgress, sessionExercises, onSaveOverride, o
           <div>
             <div style={{ ...MONO, color:PINK, marginBottom:7 }}>SESIÓN ACTIVA</div>
             <div style={{ fontFamily:FBB, fontSize:"clamp(30px,9vw,38px)", fontWeight:800, letterSpacing:-1.8, lineHeight:.98, maxWidth:300 }}>{session.label}</div>
-            <div style={{ ...MONO, color:TX2, marginTop:9 }}>{DAY_S[session.day]} / {session.sub}</div>
+            <div style={{ ...MONO, color:TX2, marginTop:9 }}>{session.day == null ? "SIN DÍA FIJO" : DAY_S[session.day]} / {session.sub}</div>
           </div>
           <div style={{ position:"relative", width:58, height:58, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
             <Ring pct={pct} c1={PINK} size={58} thick={3}/>
@@ -464,44 +473,34 @@ function SessionView({ session, setProgress, sessionExercises, onSaveOverride, o
 
 // ── HOY ───────────────────────────────────────────────────────────────────
 function HoyView({ today, sessions, setProgress, onToggleSimple, onToggleSet, sessionExercises, onSaveOverride, onAddEx, onDeleteEx, onMoveEx }) {
-  const session = sessions.find(s => s.day === today);
+  const todayKey = new Date().toLocaleDateString("es-CL");
+  const [selection, setSelection] = useState({ date:"", id:null });
+  const selectedId = selection.date === todayKey ? selection.id : null;
+  const scheduled = sessions.find(s => s.day === today);
+  const session = sessions.find(s => s.id === selectedId) || scheduled;
+  const chips = (
+    <div style={{ display:"flex", gap:7, overflowX:"auto", padding:"12px 14px 10px", borderBottom:`1px solid ${HAIR}` }}>
+      {sessions.map(s => <button key={s.id} onClick={()=>setSelection({ date:todayKey, id:s.id })} style={{ ...ACTION, whiteSpace:"nowrap", minHeight:32, padding:"0 10px", flexShrink:0, background:session?.id===s.id?C3:C1, color:session?.id===s.id?PINK:TX2, borderColor:session?.id===s.id?PINK:HAIR }}>{s.label}{s.optional ? " · OPCIONAL" : ""}</button>)}
+    </div>
+  );
   if (!session) {
     const next = (() => { for(let i=1;i<=7;i++){const d=(today+i)%7;const s=sessions.find(x=>x.day===d);if(s)return{s,n:DAY_F[d]};} return null; })();
     return (
-      <div style={{ padding:"30px 18px" }}>
-        <div style={{ marginBottom:32, borderBottom:`1px solid ${BR}`, paddingBottom:24 }}>
-          <div style={{ ...MONO, color:PINK, marginBottom:8 }}>ESTADO</div>
-          <div style={{ fontFamily:FBB, fontSize:36, fontWeight:800, letterSpacing:-1.8, color:TX, lineHeight:1 }}>Descanso</div>
-          <div style={{ ...MONO, color:MU, marginTop:14 }}>{DAY_F[today]} / RECUPERACIÓN ACTIVA</div>
-        </div>
-        {next && <div style={{ ...PANEL, overflow:"hidden", marginBottom:16 }}>
-          <div style={{ height:10, background:next.s.c1, borderBottom:`2px solid ${BR}` }}/>
-          <div style={{ padding:"14px 16px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-            <div>
-              <div style={{ ...MONO, color:PINK, marginBottom:7 }}>PRÓXIMA SESIÓN</div>
-              <div style={{ fontFamily:FBB, fontSize:26, fontWeight:800, letterSpacing:-1 }}>{next.s.label}</div>
-              <div style={{ ...MONO, fontSize:9, color:TX2, marginTop:5 }}>{next.n} / {next.s.sub}</div>
-            </div>
-            <div style={{ fontSize:11, color:TX2 }}>{resolveSession(next.s, sessionExercises[next.s.id]).items.length} ej.</div>
+      <div>
+        {chips}
+        <div style={{ padding:"30px 18px" }}>
+          <div style={{ marginBottom:32, borderBottom:`1px solid ${BR}`, paddingBottom:24 }}>
+            <div style={{ ...MONO, color:PINK, marginBottom:8 }}>ESTADO</div>
+            <div style={{ fontFamily:FBB, fontSize:36, fontWeight:800, letterSpacing:-1.8, color:TX, lineHeight:1 }}>Descanso</div>
+            <div style={{ ...MONO, color:MU, marginTop:14 }}>{DAY_F[today]} / RECUPERACIÓN ACTIVA</div>
           </div>
-        </div>}
-        <div style={{ ...PANEL, padding:"14px 16px" }}>
-          <div style={{ ...MONO, color:PINK, marginBottom:12 }}>RECUPERACIÓN</div>
-          {["1.8–2g proteína / kg peso","7–9 horas de sueño","35 ml agua × kg peso","20 min caminata si aplica"].map((t,i) => (
-            <div key={i} style={{ fontSize:12, color:TX2, padding:"10px 0", borderTop:i>0?`1px solid ${HAIR}`:"none", display:"flex", gap:12, alignItems:"center" }}>
-              <span style={{ fontFamily:FM, color:PINK, fontSize:9 }}>{String(i+1).padStart(2,"0")}</span>{t}
-            </div>
-          ))}
+          {next && <div style={{ ...PANEL, overflow:"hidden", marginBottom:16 }}><div style={{ height:10, background:next.s.c1, borderBottom:`2px solid ${BR}` }}/><div style={{ padding:"14px 16px", display:"flex", justifyContent:"space-between", alignItems:"center" }}><div><div style={{ ...MONO, color:PINK, marginBottom:7 }}>PRÓXIMA SESIÓN</div><div style={{ fontFamily:FBB, fontSize:26, fontWeight:800, letterSpacing:-1 }}>{next.s.label}</div><div style={{ ...MONO, fontSize:9, color:TX2, marginTop:5 }}>{next.n} / {next.s.sub}</div></div><div style={{ fontSize:11, color:TX2 }}>{resolveSession(next.s, sessionExercises[next.s.id]).items.length} ej.</div></div></div>}
+          <div style={{ ...PANEL, padding:"14px 16px" }}><div style={{ ...MONO, color:PINK, marginBottom:12 }}>RECUPERACIÓN</div>{["1.8–2g proteína / kg peso","7–9 horas de sueño","35 ml agua × kg peso","20 min caminata si aplica"].map((t,i) => <div key={i} style={{ fontSize:12, color:TX2, padding:"10px 0", borderTop:i>0?`1px solid ${HAIR}`:"none", display:"flex", gap:12, alignItems:"center" }}><span style={{ fontFamily:FM, color:PINK, fontSize:9 }}>{String(i+1).padStart(2,"0")}</span>{t}</div>)}</div>
         </div>
       </div>
     );
   }
-  return (
-    <div>
-      <div style={{ ...MONO, color:MU, padding:"12px 18px 0" }}>{DAY_F[today]} / MONITOREO ACTIVO</div>
-      <SessionView session={session} setProgress={setProgress} sessionExercises={sessionExercises} onSaveOverride={onSaveOverride} onToggleSimple={onToggleSimple} onToggleSet={onToggleSet} onAddEx={onAddEx} onDeleteEx={onDeleteEx} onMoveEx={onMoveEx}/>
-    </div>
-  );
+  return <div><div style={{ ...MONO, color:MU, padding:"12px 18px 0" }}>{DAY_F[today]} / MONITOREO ACTIVO</div>{chips}<SessionView session={session} setProgress={setProgress} sessionExercises={sessionExercises} onSaveOverride={onSaveOverride} onToggleSimple={onToggleSimple} onToggleSet={onToggleSet} onAddEx={onAddEx} onDeleteEx={onDeleteEx} onMoveEx={onMoveEx}/></div>;
 }
 
 // ── SEMANA ────────────────────────────────────────────────────────────────
@@ -538,9 +537,10 @@ function SemanaView({ sessions, setProgress, onToggleSimple, onToggleSet, sessio
               <div>
                 <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
                   <div style={{ fontFamily:FBB, fontSize:22, fontWeight:800, letterSpacing:-.8, lineHeight:1 }}>{s.label}</div>
+                  {s.optional && <div style={{ background:"rgba(0,224,150,.13)", color:"#00E096", border:"1px solid rgba(0,224,150,.28)", borderRadius:6, fontSize:8, fontWeight:900, padding:"3px 7px" }}>OPCIONAL</div>}
                   {pct===100 && <div style={{ background:GN, color:BG, border:"none", borderRadius:6, fontSize:8, fontWeight:900, padding:"3px 7px" }}>LISTO</div>}
                 </div>
-                <div style={{ ...MONO, fontSize:9, color:TX2, marginTop:6 }}>{DAY_S[s.day]} / {s.sub}</div>
+                <div style={{ ...MONO, fontSize:9, color:TX2, marginTop:6 }}>{s.day == null ? "SIN DÍA FIJO" : DAY_S[s.day]} / {s.sub}</div>
                 <div style={{ display:"flex", gap:3, marginTop:8 }}>
                   {items.map(e => (
                     <div key={e.id} style={{ width:10, height:7, background:exDone(e,setProgress)?GN:T_CLR[e.type]||T_CLR.strength, border:`1px solid ${BR}`, opacity:exProgress(e,setProgress)>0?1:.45, transition:"all .2s" }}/>
@@ -1047,7 +1047,8 @@ export default function GymTracker() {
 
   const activeSessions = routine === "principal" ? MAIN : MANT;
   const todayN = new Date().getDay();
-  const activeItems = activeSessions.flatMap(s => resolveSession(s, sessionExercises[s.id]).items);
+  const progressSessions = activeSessions.filter(session => !session.optional || resolveSession(session, sessionExercises[session.id]).items.some(ex => exProgress(ex,setProgress) > 0));
+  const activeItems = progressSessions.flatMap(s => resolveSession(s, sessionExercises[s.id]).items);
   const totalEx = activeItems.length, doneEx = activeItems.filter(ex=>exDone(ex,setProgress)).length;
   const progressSum = activeItems.reduce((sum,ex)=>sum + exProgress(ex,setProgress)/exTotal(ex),0);
   const wPct = totalEx ? Math.round((progressSum/totalEx)*100) : 0;
