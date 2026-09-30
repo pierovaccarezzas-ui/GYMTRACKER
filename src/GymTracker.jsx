@@ -26,7 +26,7 @@ const store = {
 const CLOUD_STATE_KEYS = [
   "week", "done", "custom", "addedEx", "deletedEx", "runs", "routine",
   "setProgress", "sessionExercises", "warmupDone", "customSessions",
-  "deletedSessions", "sessionWarmups", "todaySelection",
+  "deletedSessions", "sessionWarmups", "todaySelection", "routineOrder", "sessionMeta",
 ];
 const SYNC_META_KEY = "supabaseSyncMeta";
 
@@ -34,8 +34,13 @@ async function snapshotLocalState() {
   const entries = await Promise.all(CLOUD_STATE_KEYS.map(async key => [key, await store.get(key)]));
   return Object.fromEntries(entries.filter(([, value]) => value !== null));
 }
+function stableSerialize(value) {
+  if (Array.isArray(value)) return `[${value.map(stableSerialize).join(",")}]`;
+  if (value && typeof value === "object") return `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${stableSerialize(value[key])}`).join(",")}}`;
+  return JSON.stringify(value);
+}
 function payloadFingerprint(payload) {
-  return JSON.stringify(payload || {});
+  return stableSerialize(payload || {});
 }
 function hasTrainingData(payload) {
   return ["done", "custom", "addedEx", "deletedEx", "runs", "setProgress", "sessionExercises", "warmupDone", "customSessions", "deletedSessions", "sessionWarmups"].some(key => {
@@ -435,7 +440,7 @@ function SessionView({ session, setProgress, sessionExercises, onSaveOverride, o
         <div style={{ position:"absolute", left:0, top:0, width:"100%", height:3, background:PINK }}/>
         <div style={{ position:"relative", display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
           <div>
-            <div style={{ ...MONO, color:PINK, marginBottom:7 }}>SESIÓN ACTIVA</div>
+            <div style={{ ...MONO, color:PINK, marginBottom:7 }}>HOY TOCA</div>
             <div style={{ fontFamily:FBB, fontSize:"clamp(30px,9vw,38px)", fontWeight:800, letterSpacing:-1.8, lineHeight:.98, maxWidth:300 }}>{session.label}</div>
             <div style={{ ...MONO, color:TX2, marginTop:9 }}>{session.day == null ? "SIN DÍA FIJO" : DAY_S[session.day]} / {session.sub}</div>
           </div>
@@ -480,7 +485,7 @@ function HoyView({ today, sessions, setProgress, onToggleSimple, onToggleSet, se
   const session = sessions.find(s => s.id === selectedId) || scheduled;
   const chips = (
     <div style={{ display:"flex", gap:7, overflowX:"auto", padding:"12px 14px 10px", borderBottom:`1px solid ${HAIR}` }}>
-      {sessions.map(s => <button key={s.id} onClick={()=>setSelection({ date:todayKey, id:s.id })} style={{ ...ACTION, whiteSpace:"nowrap", minHeight:32, padding:"0 10px", flexShrink:0, background:session?.id===s.id?C3:C1, color:session?.id===s.id?PINK:TX2, borderColor:session?.id===s.id?PINK:HAIR }}>{s.label}{s.optional ? " · OPCIONAL" : ""}</button>)}
+      {sessions.map(s => <button key={s.id} onClick={()=>setSelection({ date:todayKey, id:s.id })} style={{ ...ACTION, whiteSpace:"nowrap", minHeight:32, padding:"0 10px", flexShrink:0, background:session?.id===s.id?C3:C1, color:session?.id===s.id?PINK:TX2, borderColor:session?.id===s.id?PINK:HAIR }}>{s.label}</button>)}
     </div>
   );
   if (!session) {
@@ -500,7 +505,7 @@ function HoyView({ today, sessions, setProgress, onToggleSimple, onToggleSet, se
       </div>
     );
   }
-  return <div><div style={{ ...MONO, color:MU, padding:"12px 18px 0" }}>{DAY_F[today]} / MONITOREO ACTIVO</div>{chips}<SessionView session={session} setProgress={setProgress} sessionExercises={sessionExercises} onSaveOverride={onSaveOverride} onToggleSimple={onToggleSimple} onToggleSet={onToggleSet} onAddEx={onAddEx} onDeleteEx={onDeleteEx} onMoveEx={onMoveEx}/></div>;
+  return <div><div style={{ ...MONO, color:MU, padding:"14px 18px 2px" }}>HOY · {DAY_F[today]}</div>{chips}<SessionView session={session} setProgress={setProgress} sessionExercises={sessionExercises} onSaveOverride={onSaveOverride} onToggleSimple={onToggleSimple} onToggleSet={onToggleSet} onAddEx={onAddEx} onDeleteEx={onDeleteEx} onMoveEx={onMoveEx}/></div>;
 }
 
 // ── SEMANA ────────────────────────────────────────────────────────────────
@@ -537,7 +542,6 @@ function SemanaView({ sessions, setProgress, onToggleSimple, onToggleSet, sessio
               <div>
                 <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
                   <div style={{ fontFamily:FBB, fontSize:22, fontWeight:800, letterSpacing:-.8, lineHeight:1 }}>{s.label}</div>
-                  {s.optional && <div style={{ background:"rgba(0,224,150,.13)", color:"#00E096", border:"1px solid rgba(0,224,150,.28)", borderRadius:6, fontSize:8, fontWeight:900, padding:"3px 7px" }}>OPCIONAL</div>}
                   {pct===100 && <div style={{ background:GN, color:BG, border:"none", borderRadius:6, fontSize:8, fontWeight:900, padding:"3px 7px" }}>LISTO</div>}
                 </div>
                 <div style={{ ...MONO, fontSize:9, color:TX2, marginTop:6 }}>{s.day == null ? "SIN DÍA FIJO" : DAY_S[s.day]} / {s.sub}</div>
@@ -873,7 +877,7 @@ export default function GymTracker() {
       const localFingerprint = payloadFingerprint(local);
       const cloudFingerprint = payloadFingerprint(data.payload);
       const meta = await store.get(SYNC_META_KEY);
-      if (!hasTrainingData(local) || meta?.fingerprint === localFingerprint) {
+      if (!hasTrainingData(local) || cloudFingerprint === localFingerprint || meta?.fingerprint === localFingerprint) {
         if (cloudFingerprint !== localFingerprint) {
           await applyCloudPayload(data.payload);
           if (active) window.location.reload();
@@ -1076,7 +1080,7 @@ export default function GymTracker() {
           <div style={{ display:"flex", alignItems:"center", gap:10 }}>
             <div style={{ textAlign:"right" }}>
               <div style={{ fontFamily:FBB, fontSize:24, fontWeight:850, letterSpacing:-1, lineHeight:.9 }}>{wPct}<span style={{ fontSize:9, color:PINK, fontFamily:FM }}>%</span></div>
-              <div style={{ ...MONO, fontSize:7, color:MU, marginTop:5 }}>VIGOR / {doneEx}:{totalEx}</div>
+              <div style={{ ...MONO, fontSize:7, color:MU, marginTop:5 }}>{doneEx} DE {totalEx} EJERCICIOS</div>
             </div>
             <div style={{ position:"relative", width:32, height:32, display:"flex", alignItems:"center", justifyContent:"center" }}>
               <Ring pct={wPct} c1={PINK} size={34} thick={3}/>
