@@ -428,7 +428,7 @@ function ExCard({ ex, index, progress, done, c1, onToggleSimple, onToggleSet, is
 }
 
 // ── SESSION VIEW ──────────────────────────────────────────────────────────
-function SessionView({ session, setProgress, sessionExercises, onSaveOverride, onToggleSimple, onToggleSet, onAddEx, onDeleteEx, onMoveEx }) {
+function SessionView({ session, setProgress, sessionExercises, onSaveOverride, onToggleSimple, onToggleSet, onAddEx, onDeleteEx, onMoveEx, minimal=false }) {
   const [showAdd, setShowAdd] = useState(false);
   const { items } = resolveSession(session, sessionExercises[session.id]);
   const { dn, tot, pct } = sessProgress(session, setProgress, sessionExercises);
@@ -451,14 +451,11 @@ function SessionView({ session, setProgress, sessionExercises, onSaveOverride, o
             </div>
           </div>
         </div>
-        <div style={{ display:"flex", position:"relative", marginTop:16, background:C2, border:`1px solid ${HAIR}`, borderRadius:9, overflow:"hidden" }}>
-          {[{v:`${dn}/${tot}`,l:"ejercicios"},{v:String(totalSets||"—"),l:"series"},{v:pct===100?"LISTO":`${tot-dn} left`,l:pct===100?"":"restantes"}].map((s,i)=>(
-            <div key={i} style={{ flex:1, padding:"12px 4px", borderRight:i<2?`1px solid ${HAIR}`:"none" }}>
-              <div style={{ fontFamily:FM, fontSize:15, fontWeight:500, lineHeight:1 }}>{s.v}</div>
-              <div style={{ ...MONO, fontSize:7, color:MU, marginTop:5 }}>{s.l}</div>
-            </div>
+        {!minimal && <div style={{ display:"flex", position:"relative", marginTop:16, background:C2, border:`1px solid ${HAIR}`, borderRadius:9, overflow:"hidden" }}>
+          {[{v:`${dn}/${tot}`,l:"ejercicios"},{v:String(totalSets||"—"),l:"series"},{v:pct===100?"LISTO":`${tot-dn} pendientes`,l:pct===100?"":"restantes"}].map((s,i)=>(
+            <div key={i} style={{ flex:1, padding:"12px 4px", borderRight:i<2?`1px solid ${HAIR}`:"none" }}><div style={{ fontFamily:FM, fontSize:15, fontWeight:500, lineHeight:1 }}>{s.v}</div><div style={{ ...MONO, fontSize:7, color:MU, marginTop:5 }}>{s.l}</div></div>
           ))}
-        </div>
+        </div>}
       </div>
       <div style={{ padding:"14px 12px 22px" }}>
         {session.sessionNote && <div style={{ ...MONO, fontSize:9, color:TX2, background:C2, padding:"10px 12px", marginBottom:12, borderLeft:`3px solid ${PINK}` }}>{session.sessionNote}</div>}
@@ -505,14 +502,14 @@ function HoyView({ today, sessions, setProgress, onToggleSimple, onToggleSet, se
       </div>
     );
   }
-  return <div><div style={{ ...MONO, color:MU, padding:"14px 18px 2px" }}>HOY · {DAY_F[today]}</div>{chips}<SessionView session={session} setProgress={setProgress} sessionExercises={sessionExercises} onSaveOverride={onSaveOverride} onToggleSimple={onToggleSimple} onToggleSet={onToggleSet} onAddEx={onAddEx} onDeleteEx={onDeleteEx} onMoveEx={onMoveEx}/></div>;
+  return <div><div style={{ ...MONO, color:MU, padding:"14px 18px 2px" }}>HOY · {DAY_F[today]}</div>{chips}<SessionView minimal session={session} setProgress={setProgress} sessionExercises={sessionExercises} onSaveOverride={onSaveOverride} onToggleSimple={onToggleSimple} onToggleSet={onToggleSet} onAddEx={onAddEx} onDeleteEx={onDeleteEx} onMoveEx={onMoveEx}/></div>;
 }
 
 // ── SEMANA ────────────────────────────────────────────────────────────────
 function SemanaView({ sessions, setProgress, onToggleSimple, onToggleSet, sessionExercises, onSaveOverride, onAddEx, onDeleteEx, onMoveEx, semId, setSemId, onReorder, onAddRoutine, onSaveRoutine, onDeleteRoutine }) {
   const [showCreate, setShowCreate] = useState(false);
   const [newLabel, setNewLabel] = useState(""); const [newSub, setNewSub] = useState(""); const [newDay, setNewDay] = useState("");
-  const [dragging, setDragging] = useState(null); const holdRef = useRef(null);
+  const [dragging, setDragging] = useState(null); const [showActions, setShowActions] = useState(false); const holdRef = useRef(null);
   const idx = semId ? sessions.findIndex(s => s.id === semId) : -1;
   const session = idx >= 0 ? sessions[idx] : null;
   if (session) {
@@ -527,7 +524,7 @@ function SemanaView({ sessions, setProgress, onToggleSimple, onToggleSet, sessio
             {next.label}<ChevronRight size={14}/>
           </button>}
         </div>
-        <div style={{ padding:"10px 14px", borderBottom:`1px solid ${HAIR}`, display:"flex", gap:8 }}><button onClick={()=>{ const label=window.prompt("Nombre de la rutina", session.label); if (!label?.trim()) return; const sub=window.prompt("Subtítulo", session.sub) ?? session.sub; onSaveRoutine(session.id,{label:label.trim(),sub}); }} style={{ ...ACTION, flex:1, background:C2 }}><Pencil size={13}/> Editar</button><button onClick={()=>{if(window.confirm(`¿Seguro que quieres borrar ${session.label}? Se eliminarán sus ejercicios y todo su progreso.`)) onDeleteRoutine(session.id);}} style={{ ...ACTION, flex:1, background:"#3B1720", color:"#FCA5A5" }}><Trash2 size={13}/> Borrar</button></div>
+        <div style={{padding:"8px 14px",borderBottom:`1px solid ${HAIR}`,display:"flex",justifyContent:"flex-end",position:"relative"}}><button aria-label="Opciones de rutina" onClick={()=>setShowActions(value=>!value)} style={{background:C2,border:`1px solid ${BR}`,color:TX2,borderRadius:8,width:34,height:34}}><MoreVertical size={16}/></button>{showActions&&<div style={{position:"absolute",right:14,top:48,zIndex:5,...PANEL,padding:6,width:150}}><button onClick={()=>{const label=window.prompt("Nombre de la rutina",session.label);if(label?.trim())onSaveRoutine(session.id,{label:label.trim(),sub:window.prompt("Subtítulo",session.sub)??session.sub});setShowActions(false);}} style={{...ACTION,width:"100%",background:"transparent",border:"none",textAlign:"left"}}><Pencil size={13}/> Editar</button><button onClick={()=>{if(window.confirm(`¿Seguro que quieres borrar ${session.label}? Se eliminarán sus ejercicios y todo su progreso.`))onDeleteRoutine(session.id);}} style={{...ACTION,width:"100%",background:"transparent",border:"none",color:"#FCA5A5",textAlign:"left"}}><Trash2 size={13}/> Borrar</button></div>}</div>
         <SessionView session={session} setProgress={setProgress} sessionExercises={sessionExercises} onSaveOverride={onSaveOverride} onToggleSimple={onToggleSimple} onToggleSet={onToggleSet} onAddEx={onAddEx} onDeleteEx={onDeleteEx} onMoveEx={onMoveEx}/>
       </div>
     );
@@ -980,8 +977,9 @@ export default function GymTracker() {
   const signInWithPassword = async () => {
     if (!supabase || !syncEmail.trim() || !syncPassword) return;
     setSyncMode("checking");
-    const { error } = await supabase.auth.signInWithPassword({ email:syncEmail.trim(), password:syncPassword });
-    if (error) { setSyncMode("error"); setSyncMessage("Correo o contraseña incorrectos. Si aún no tienes contraseña, usa el enlace de acceso."); }
+    const { data, error } = await supabase.auth.signInWithPassword({ email:syncEmail.trim(), password:syncPassword });
+    if (error) { setSyncMode("error"); setSyncMessage("Correo o contraseña incorrectos. Si aún no tienes contraseña, usa el enlace de acceso."); return; }
+    setCloudSession(data.session);
   };
 
   const savePassword = async () => {
