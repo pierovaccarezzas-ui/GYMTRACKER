@@ -1098,10 +1098,10 @@ export default function GymTracker() {
     const next={ ...deletedSessions, [routine]:[...(deletedSessions[routine] || []), id] }; setDeletedSessions(next); await store.set("deletedSessions",next); setSemId(null);
   };
   const calcPace = () => { const k=parseFloat(rkm),m=parseInt(rmin)||0,s=parseInt(rsec)||0; if(!k||k<=0||m+s===0)return; const tot=m*60+s,ps=tot/k,pm=Math.floor(ps/60),pr=Math.round(ps%60); setPace({km:k,min:m,sec:s,pace:`${pm}:${String(pr).padStart(2,"0")}`,kmh:(k/(tot/3600)).toFixed(1)}); };
-  const saveRun  = async () => { if(!pace)return; const n=[...runs,{...pace,type:rtype,date:new Date().toLocaleDateString("es-CL"),ts:nowStamp()}]; setRuns(n); await store.set("runs",n); const linkedId = rtype === "hiit" ? "hiit" : rtype === "z2" ? "z2" : null; if (linkedId) { const linked=activeSessions.find(session=>session.id===linkedId); const exercise=linked && resolveSession(linked,sessionExercises[linked.id]).items[0]; if (exercise) await saveSetProgress({ ...setProgress, [exercise.id]:exTotal(exercise) }); } setPace(null); setRkm(""); setRmin(""); setRsec(""); };
   const cancelRun = () => { setPace(null); setRkm(""); setRmin(""); setRsec(""); };
-  const deleteRun = async i => { const n=runs.filter((_,j)=>j!==i); setRuns(n); await store.set("runs",n); };
-  const clearRuns = async () => { setRuns([]); await store.set("runs",[]); };
+  const saveRun  = async () => { if(!pace)return; const n=[...runs,{...pace,type:rtype,date:new Date().toLocaleDateString("es-CL"),ts:nowStamp()}]; await store.set("runs",n); setRuns(n); await syncLinkedRunProgress(n); cancelRun(); };
+  const deleteRun = async i => { const n=runs.filter((_,j)=>j!==i); await store.set("runs",n); setRuns(n); await syncLinkedRunProgress(n); };
+  const clearRuns = async () => { await store.set("runs",[]); setRuns([]); await syncLinkedRunProgress([]); };
   const sourceSessions = MAIN;
   const allEffectiveSessions = [...sourceSessions, ...(customSessions[routine] || [])].filter(session => !(deletedSessions[routine] || []).includes(session.id)).map(session => ({ ...session, ...(sessionMeta[session.id] || {}) }));
   const ids = routineOrder[routine] || [];
@@ -1109,6 +1109,16 @@ export default function GymTracker() {
     const ai = ids.indexOf(a.id), bi = ids.indexOf(b.id);
     return (ai < 0 ? Number.MAX_SAFE_INTEGER : ai) - (bi < 0 ? Number.MAX_SAFE_INTEGER : bi);
   });
+  const syncLinkedRunProgress = async nextRuns => {
+    const next = { ...setProgress };
+    [["hiit", "hiit"], ["z2", "z2"]].forEach(([runType, sessionId]) => {
+      const session = activeSessions.find(item => item.id === sessionId);
+      const exercise = session && resolveSession(session, sessionExercises[session.id]).items[0];
+      if (exercise) next[exercise.id] = nextRuns.some(run => run.type === runType) ? exTotal(exercise) : 0;
+    });
+    await saveSetProgress(next);
+  };
+
   const syncRelationalData = useCallback(async () => {
     if (!supabase || !cloudUserId) return;
     const sessions = activeSessions.map(session => ({ user_id:cloudUserId, session_id:session.id, label:session.label, subtitle:session.sub || null, day_of_week:session.day ?? null, optional:!!session.optional, updated_at:new Date().toISOString() }));
