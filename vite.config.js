@@ -7,6 +7,9 @@ import { VitePWA } from 'vite-plugin-pwa'
 //  vite.config.appsscript.js por si alguna vez se necesita el HTML único.)
 // https://vite.dev/config/
 export default defineConfig({
+  // Solo estas dos variables de Supabase se incluyen en el bundle del navegador.
+  // No se usa un prefijo amplio para impedir exponer una clave secreta por error.
+  envPrefix: ['SUPABASE_URL', 'SUPABASE_PUBLISHABLE_KEY'],
   plugins: [
     react(),
     VitePWA({

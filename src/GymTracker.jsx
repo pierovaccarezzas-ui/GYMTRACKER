@@ -1,17 +1,49 @@
-import { useState, useEffect } from "react";
-import { Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, MoreVertical, Pencil, X, Trash2, Plus } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, MoreVertical, Pencil, X, Trash2, Plus, Cloud, LogOut, Mail } from "lucide-react";
+import { isSupabaseConfigured, supabase } from "./supabase";
 
 // ── STORAGE ───────────────────────────────────────────────────────────────
+let onLocalStoreChange = null;
 const store = {
   async get(k) {
-    try { if (window.storage?.get) { const r = await window.storage.get(k); return r ? JSON.parse(r.value) : null; } } catch {}
-    try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : null; } catch { return null; }
+    try { if (window.storage?.get) { const r = await window.storage.get(k); return r ? JSON.parse(r.value) : null; } } catch { /* usar localStorage */ }
+    try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : null; } catch { /* almacenamiento no disponible */ return null; }
   },
   async set(k, v) {
-    try { if (window.storage?.set) { await window.storage.set(k, JSON.stringify(v)); return; } } catch {}
-    try { localStorage.setItem(k, JSON.stringify(v)); } catch {}
+    try {
+      if (window.storage?.set) {
+        await window.storage.set(k, JSON.stringify(v));
+        onLocalStoreChange?.(k);
+        return;
+      }
+    } catch { /* intentar localStorage */ }
+    try {
+      localStorage.setItem(k, JSON.stringify(v));
+      onLocalStoreChange?.(k);
+    } catch { /* no hay almacenamiento disponible */ }
   },
 };
+const CLOUD_STATE_KEYS = [
+  "week", "done", "custom", "addedEx", "deletedEx", "runs", "routine",
+  "setProgress", "sessionExercises", "warmupDone", "customSessions",
+  "deletedSessions", "sessionWarmups", "todaySelection",
+];
+const SYNC_META_KEY = "supabaseSyncMeta";
+
+async function snapshotLocalState() {
+  const entries = await Promise.all(CLOUD_STATE_KEYS.map(async key => [key, await store.get(key)]));
+  return Object.fromEntries(entries.filter(([, value]) => value !== null));
+}
+function payloadFingerprint(payload) {
+  return JSON.stringify(payload || {});
+}
+function hasTrainingData(payload) {
+  return ["done", "custom", "addedEx", "deletedEx", "runs", "setProgress", "sessionExercises", "warmupDone", "customSessions", "deletedSessions", "sessionWarmups"].some(key => {
+    const value = payload?.[key];
+    return Array.isArray(value) ? value.length > 0 : Boolean(value && typeof value === "object" && Object.keys(value).length > 0);
+  });
+}
+
 function isoWeek() {
   const d = new Date(), t = new Date(d);
   t.setDate(d.getDate() + 4 - (d.getDay() || 7));
@@ -637,6 +669,50 @@ function CarrerasView({ runs, rkm, setRkm, rmin, setRmin, rsec, setRsec, rtype, 
   );
 }
 
+// ── SINCRONIZACIÓN ────────────────────────────────────────────────────────
+function SyncPanel({ open, onClose, session, mode, message, email, setEmail, onSendLink, onUpload, onUseCloud, onSignOut }) {
+  if (!open) return null;
+  const status = {
+    checking: "Comprobando la copia de Supabase…",
+    synced: "Tus cambios se guardan automáticamente en todos tus dispositivos.",
+    import: "Encontramos datos locales. Súbelos solo si esta es la copia que quieres conservar.",
+    conflict: "Hay datos distintos en este dispositivo y en Supabase. Elige cuál conservar antes de continuar.",
+    sending: "Enviando el enlace de acceso…",
+    sent: "Revisa tu correo y abre el enlace desde este mismo dispositivo.",
+    error: message || "No fue posible sincronizar ahora.",
+  }[mode];
+
+  return (
+    <div style={{ ...PANEL, marginTop:10, padding:14, background:C1 }}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+        <div style={{ ...MONO, color:PINK, fontSize:8 }}>SINCRONIZACIÓN / SUPABASE</div>
+        <button onClick={onClose} aria-label="Cerrar sincronización" style={{ background:"none", border:"none", color:MU, cursor:"pointer", display:"flex", padding:2 }}><X size={15}/></button>
+      </div>
+      {!isSupabaseConfigured ? (
+        <div style={{ fontSize:11, color:TX2, lineHeight:1.45 }}>Falta configurar este dispositivo.</div>
+      ) : !session ? (
+        <>
+          <div style={{ fontSize:11, color:TX2, lineHeight:1.45, marginBottom:10 }}>Usa el mismo correo en tu teléfono y computador para guardar una sola copia.</div>
+          <input value={email} onChange={event=>setEmail(event.target.value)} type="email" inputMode="email" placeholder="tu@correo.com" style={{ ...INPUT, marginBottom:8 }}/>
+          <button onClick={onSendLink} disabled={!email.trim() || mode==="sending"} style={{ ...ACTION, width:"100%", background:PINK, color:C1, borderColor:PINK, display:"flex", justifyContent:"center", alignItems:"center", gap:6 }}><Mail size={13}/>Enviar enlace de acceso</button>
+          {status && <div style={{ fontSize:10, color:mode==="error"?"#FB7185":TX2, lineHeight:1.45, marginTop:9 }}>{status}</div>}
+        </>
+      ) : (
+        <>
+          <div style={{ fontSize:10, color:TX2, marginBottom:8 }}>{session.user.email}</div>
+          <div style={{ fontSize:11, color:mode==="error"?"#FB7185":TX2, lineHeight:1.45 }}>{status}</div>
+          {mode==="import" && <button onClick={onUpload} style={{ ...ACTION, width:"100%", marginTop:10, background:PINK, color:C1, borderColor:PINK }}>Subir datos de este dispositivo</button>}
+          {mode==="conflict" && <div style={{ display:"flex", gap:8, marginTop:10 }}>
+            <button onClick={onUseCloud} style={{ ...ACTION, flex:1, minHeight:44, background:C3 }}>Usar Supabase</button>
+            <button onClick={onUpload} style={{ ...ACTION, flex:1, minHeight:44, background:PINK, color:C1, borderColor:PINK }}>Conservar este dispositivo</button>
+          </div>}
+          <button onClick={onSignOut} style={{ background:"none", border:"none", cursor:"pointer", color:MU, fontSize:10, display:"flex", alignItems:"center", gap:5, marginTop:11, padding:0 }}><LogOut size={12}/>Cerrar sesión</button>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ── MAIN ──────────────────────────────────────────────────────────────────
 export default function GymTracker() {
   const [tab,       setTab      ] = useState("hoy");
@@ -648,6 +724,19 @@ export default function GymTracker() {
   const [semId,     setSemId    ] = useState(null);
   const [rkm,setRkm]=useState(""); const [rmin,setRmin]=useState(""); const [rsec,setRsec]=useState("");
   const [rtype,setRtype]=useState("z2"); const [pace,setPace]=useState(null);
+  const [cloudSession, setCloudSession] = useState(null);
+  const [syncOpen, setSyncOpen] = useState(false);
+  const [syncEmail, setSyncEmail] = useState("");
+  const [syncMode, setSyncMode] = useState(isSupabaseConfigured ? "checking" : "error");
+  const [syncMessage, setSyncMessage] = useState("");
+  const syncModeRef = useRef(syncMode);
+  const applyingCloudRef = useRef(false);
+  const syncTimerRef = useRef(null);
+  const cloudConflictRef = useRef(null);
+  const uploadInFlightRef = useRef(false);
+  const pendingSyncRef = useRef(false);
+  const uploadLocalStateRef = useRef(null);
+  const cloudUserId = cloudSession?.user?.id;
 
   useEffect(() => {
     (async () => {
@@ -687,6 +776,166 @@ export default function GymTracker() {
       }
     })();
   }, []);
+
+  useEffect(() => {
+    syncModeRef.current = syncMode;
+  }, [syncMode]);
+
+  useEffect(() => {
+    if (!supabase) return undefined;
+    let active = true;
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (!active) return;
+      if (error) { setSyncMode("error"); setSyncMessage("No fue posible recuperar la sesión."); return; }
+      setCloudSession(data.session || null);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      if (active) setCloudSession(nextSession);
+    });
+    return () => { active = false; subscription.unsubscribe(); };
+  }, []);
+
+  const applyCloudPayload = async payload => {
+    applyingCloudRef.current = true;
+    try {
+      await Promise.all(CLOUD_STATE_KEYS.map(key => payload?.[key] === undefined ? Promise.resolve() : store.set(key, payload[key])));
+      await store.set(SYNC_META_KEY, { fingerprint:payloadFingerprint(payload), updatedAt:new Date().toISOString() });
+    } finally {
+      applyingCloudRef.current = false;
+    }
+  };
+
+  const uploadLocalState = async () => {
+    if (!supabase || !cloudUserId || uploadInFlightRef.current) return;
+    uploadInFlightRef.current = true;
+    pendingSyncRef.current = false;
+    setSyncMode("checking");
+    try {
+      const payload = await snapshotLocalState();
+      const { data, error } = await supabase
+        .from("gymtrack_state")
+        .upsert({ user_id:cloudUserId, payload, updated_at:new Date().toISOString() }, { onConflict:"user_id" })
+        .select("updated_at")
+        .single();
+      if (error) {
+        setSyncMode("error");
+        setSyncMessage("No fue posible guardar la copia de Supabase. Intenta de nuevo.");
+        return;
+      }
+      await store.set(SYNC_META_KEY, { fingerprint:payloadFingerprint(payload), updatedAt:data?.updated_at || new Date().toISOString() });
+      setSyncMode("synced");
+      setSyncMessage("");
+    } finally {
+      uploadInFlightRef.current = false;
+      if (pendingSyncRef.current) window.setTimeout(() => { uploadLocalStateRef.current?.(); }, 0);
+    }
+  };
+
+  useEffect(() => {
+    uploadLocalStateRef.current = uploadLocalState;
+  });
+
+  useEffect(() => {
+    if (!loaded || !cloudUserId || !supabase) return undefined;
+    let active = true;
+    (async () => {
+      setSyncMode("checking");
+      const { data, error } = await supabase
+        .from("gymtrack_state")
+        .select("payload, updated_at")
+        .eq("user_id", cloudUserId)
+        .maybeSingle();
+      if (!active) return;
+      if (error) {
+        setSyncMode("error");
+        setSyncMessage("No fue posible leer la copia de Supabase.");
+        return;
+      }
+      const local = await snapshotLocalState();
+      if (!data) {
+        setSyncMode(hasTrainingData(local) ? "import" : "synced");
+        return;
+      }
+      const localFingerprint = payloadFingerprint(local);
+      const cloudFingerprint = payloadFingerprint(data.payload);
+      const meta = await store.get(SYNC_META_KEY);
+      if (!hasTrainingData(local) || meta?.fingerprint === localFingerprint) {
+        if (cloudFingerprint !== localFingerprint) {
+          await applyCloudPayload(data.payload);
+          if (active) window.location.reload();
+          return;
+        }
+        await store.set(SYNC_META_KEY, { fingerprint:cloudFingerprint, updatedAt:data.updated_at });
+        if (active) setSyncMode("synced");
+        return;
+      }
+      cloudConflictRef.current = data.payload;
+      setSyncMode("conflict");
+    })();
+    return () => { active = false; };
+  }, [loaded, cloudUserId]);
+
+  useEffect(() => {
+    if (!supabase || !cloudUserId || syncMode !== "synced") return undefined;
+    const channel = supabase.channel(`gymtrack-state-${cloudUserId}`)
+      .on("postgres_changes", { event:"UPDATE", schema:"public", table:"gymtrack_state", filter:`user_id=eq.${cloudUserId}` }, async event => {
+        const cloudPayload = event.new?.payload;
+        if (!cloudPayload) return;
+        const local = await snapshotLocalState();
+        const localFingerprint = payloadFingerprint(local);
+        const cloudFingerprint = payloadFingerprint(cloudPayload);
+        if (localFingerprint === cloudFingerprint) return;
+        const meta = await store.get(SYNC_META_KEY);
+        if (meta?.fingerprint === localFingerprint) {
+          await applyCloudPayload(cloudPayload);
+          window.location.reload();
+          return;
+        }
+        cloudConflictRef.current = cloudPayload;
+        setSyncMode("conflict");
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [cloudUserId, syncMode]);
+
+  useEffect(() => {
+    onLocalStoreChange = key => {
+      if (key === SYNC_META_KEY || applyingCloudRef.current || !cloudSession) return;
+      if (syncModeRef.current !== "synced" && !uploadInFlightRef.current) return;
+      pendingSyncRef.current = true;
+      if (uploadInFlightRef.current) return;
+      window.clearTimeout(syncTimerRef.current);
+      syncTimerRef.current = window.setTimeout(() => { uploadLocalStateRef.current?.(); }, 800);
+    };
+    return () => {
+      window.clearTimeout(syncTimerRef.current);
+      onLocalStoreChange = null;
+    };
+  }, [cloudSession]);
+
+  const sendMagicLink = async () => {
+    if (!supabase || !syncEmail.trim()) return;
+    setSyncMode("sending");
+    const { error } = await supabase.auth.signInWithOtp({
+      email:syncEmail.trim(),
+      options:{ emailRedirectTo:window.location.origin },
+    });
+    if (error) { setSyncMode("error"); setSyncMessage("No fue posible enviar el enlace. Revisa el correo e intenta de nuevo."); return; }
+    setSyncMode("sent");
+  };
+
+  const useCloudCopy = async () => {
+    if (!cloudConflictRef.current) return;
+    await applyCloudPayload(cloudConflictRef.current);
+    window.location.reload();
+  };
+
+  const signOutCloud = async () => {
+    if (!supabase) return;
+    await supabase.auth.signOut();
+    setCloudSession(null);
+    setSyncMode("checking");
+  };
 
   const saveSetProgress = async n => { setSetProgress(n); await store.set("setProgress",n); };
   const toggleSimple = async ex => {
@@ -781,6 +1030,12 @@ export default function GymTracker() {
             </div>
           </div>
         </div>
+        <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:8 }}>
+          <button onClick={()=>setSyncOpen(value=>!value)} style={{ background:"none", border:"none", color:cloudSession && syncMode==="synced"?PINK:MU, cursor:"pointer", display:"flex", alignItems:"center", gap:5, padding:0, fontFamily:FM, fontSize:8, letterSpacing:1, textTransform:"uppercase" }}>
+            <Cloud size={13}/>{cloudSession ? (syncMode==="synced" ? "Sincronizado" : "Pendiente") : "Sincronizar"}
+          </button>
+        </div>
+        <SyncPanel open={syncOpen} onClose={()=>setSyncOpen(false)} session={cloudSession} mode={syncMode} message={syncMessage} email={syncEmail} setEmail={setSyncEmail} onSendLink={sendMagicLink} onUpload={uploadLocalState} onUseCloud={useCloudCopy} onSignOut={signOutCloud}/>
         {/* ROUTINE SWITCHER */}
         <div style={{ display:"flex", padding:3, gap:3, background:C1, border:`1px solid ${HAIR}`, borderRadius:10 }}>
           {[{id:"principal",label:"A / Principal"},{id:"mantenimiento",label:"B / Mantenimiento"}].map(r => (
