@@ -572,6 +572,7 @@ function SemanaView({ sessions, setProgress, onToggleSimple, onToggleSet, sessio
 // ── CARRERAS ──────────────────────────────────────────────────────────────
 function CarrerasView({ runs, rkm, setRkm, rmin, setRmin, rsec, setRsec, rtype, setRtype, pace, onCalc, onSave, onCancel, onDelete, onClear }) {
   const [cfm, setCfm] = useState(false);
+  const [confirmRun, setConfirmRun] = useState(false);
   const toS = s => { const [m,p]=s.split(":").map(Number); return m*60+p; };
   const best = runs.length ? runs.reduce((b,r) => toS(r.pace) < toS(b.pace) ? r : b) : null;
   const inp = INPUT;
@@ -631,7 +632,7 @@ function CarrerasView({ runs, rkm, setRkm, rmin, setRmin, rsec, setRsec, rtype, 
                 <button key={t.id} onClick={()=>setRtype(t.id)} style={{ ...ACTION, flex:1, background:rtype===t.id?BR:C1, color:rtype===t.id?C1:TX }}>{t.label}</button>
               ))}
             </div>
-            <div style={{display:"flex",gap:8,marginTop:12}}><button onClick={onCancel} style={{...ACTION,flex:1,background:C1}}>Cancelar</button><button onClick={()=>{if(window.confirm(`¿Registrar esta carrera como ${RUN_TYPES.find(t=>t.id===rtype)?.label || "sesión"}?`))onSave();}} style={{ ...ACTION, flex:2, background:PINK, color:C1, borderColor:PINK }}>Guardar</button></div>
+            {!confirmRun ? <div style={{display:"flex",gap:8,marginTop:12}}><button onClick={()=>{setConfirmRun(false);onCancel();}} style={{...ACTION,flex:1,background:C1}}>Cancelar</button><button onClick={()=>setConfirmRun(true)} style={{ ...ACTION, flex:2, background:PINK, color:C1, borderColor:PINK }}>Guardar</button></div> : <div style={{...PANEL,marginTop:12,padding:12,background:"rgba(249,115,22,.10)",borderColor:"rgba(249,115,22,.35)"}}><div style={{fontSize:11,color:TX2,marginBottom:10}}>¿Registrar esta carrera como <strong style={{color:TX}}>{RUN_TYPES.find(t=>t.id===rtype)?.label}</strong>?</div><div style={{display:"flex",gap:8}}><button onClick={()=>setConfirmRun(false)} style={{...ACTION,flex:1,background:C1}}>Volver</button><button onClick={()=>{onSave();setConfirmRun(false);}} style={{...ACTION,flex:2,background:ORANGE,color:BG,borderColor:ORANGE}}>Confirmar registro</button></div></div>}
           </div>
         )}
       </div>
