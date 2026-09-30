@@ -509,7 +509,10 @@ function HoyView({ today, sessions, setProgress, onToggleSimple, onToggleSet, se
 }
 
 // ── SEMANA ────────────────────────────────────────────────────────────────
-function SemanaView({ sessions, setProgress, onToggleSimple, onToggleSet, sessionExercises, onSaveOverride, onAddEx, onDeleteEx, onMoveEx, semId, setSemId }) {
+function SemanaView({ sessions, setProgress, onToggleSimple, onToggleSet, sessionExercises, onSaveOverride, onAddEx, onDeleteEx, onMoveEx, semId, setSemId, onReorder, onAddRoutine, onSaveRoutine }) {
+  const [showCreate, setShowCreate] = useState(false);
+  const [newLabel, setNewLabel] = useState(""); const [newSub, setNewSub] = useState(""); const [newDay, setNewDay] = useState("");
+  const [dragging, setDragging] = useState(null); const holdRef = useRef(null);
   const idx = semId ? sessions.findIndex(s => s.id === semId) : -1;
   const session = idx >= 0 ? sessions[idx] : null;
   if (session) {
@@ -524,6 +527,7 @@ function SemanaView({ sessions, setProgress, onToggleSimple, onToggleSet, sessio
             {next.label}<ChevronRight size={14}/>
           </button>}
         </div>
+        <div style={{ padding:"10px 14px", borderBottom:`1px solid ${HAIR}` }}><button onClick={()=>{ const label=window.prompt("Nombre de la rutina", session.label); if (!label?.trim()) return; const sub=window.prompt("Subtítulo", session.sub) ?? session.sub; onSaveRoutine(session.id,{label:label.trim(),sub}); }} style={{ ...ACTION, width:"100%", background:C2, display:"flex", justifyContent:"center", alignItems:"center", gap:6 }}><Pencil size={13}/> Editar rutina</button></div>
         <SessionView session={session} setProgress={setProgress} sessionExercises={sessionExercises} onSaveOverride={onSaveOverride} onToggleSimple={onToggleSimple} onToggleSet={onToggleSet} onAddEx={onAddEx} onDeleteEx={onDeleteEx} onMoveEx={onMoveEx}/>
       </div>
     );
@@ -536,7 +540,7 @@ function SemanaView({ sessions, setProgress, onToggleSimple, onToggleSet, sessio
         const { pct } = sessProgress(s, setProgress, sessionExercises);
         const { items } = resolveSession(s, sessionExercises[s.id]);
         return (
-          <div key={s.id} onClick={()=>setSemId(s.id)} style={{ ...PANEL, marginBottom:0, overflow:"hidden", cursor:"pointer", display:"flex", borderLeft:"none", borderRight:"none", borderBottom:`1px solid ${HAIR}` }}>
+          <div key={s.id} data-session-id={s.id} onClick={()=>!dragging && setSemId(s.id)} onPointerDown={()=>{ holdRef.current=window.setTimeout(()=>setDragging(s.id),350); }} onPointerUp={()=>{ window.clearTimeout(holdRef.current); setDragging(null); }} onPointerCancel={()=>{ window.clearTimeout(holdRef.current); setDragging(null); }} onPointerMove={event=>{ if (!dragging) return; const target=document.elementFromPoint(event.clientX,event.clientY)?.closest("[data-session-id]"); if (target?.dataset.sessionId && target.dataset.sessionId !== dragging) onReorder(dragging,target.dataset.sessionId); }} style={{ ...PANEL, marginBottom:0, overflow:"hidden", cursor:dragging===s.id?"grabbing":"pointer", opacity:dragging===s.id ? .65 : 1, display:"flex", borderLeft:"none", borderRight:"none", borderBottom:`1px solid ${HAIR}`, touchAction:"none" }}>
             <div style={{ width:48, padding:"15px 10px", fontFamily:FM, fontSize:11, color:PINK, borderRight:`1px solid ${HAIR}`, flexShrink:0 }}>{String(sessionIndex+1).padStart(2,"0")}</div>
             <div style={{ flex:1, padding:"14px 14px 14px 16px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
               <div>
@@ -564,6 +568,7 @@ function SemanaView({ sessions, setProgress, onToggleSimple, onToggleSet, sessio
           </div>
         );
       })}
+      {showCreate ? <div style={{ ...PANEL, padding:14, marginTop:14 }}><div style={{ ...MONO, color:PINK, marginBottom:9 }}>NUEVA RUTINA</div><input value={newLabel} onChange={e=>setNewLabel(e.target.value)} placeholder="Nombre" style={{ ...INPUT, marginBottom:8 }}/><input value={newSub} onChange={e=>setNewSub(e.target.value)} placeholder="Subtítulo" style={{ ...INPUT, marginBottom:8 }}/><select value={newDay} onChange={e=>setNewDay(e.target.value)} style={{ ...INPUT, marginBottom:10 }}><option value="">Sin día fijo</option>{["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"].map((d,i)=><option key={d} value={i}>{d}</option>)}</select><div style={{display:"flex",gap:8}}><button onClick={()=>{if(!newLabel.trim())return;onAddRoutine({label:newLabel.trim(),sub:newSub.trim(),day:newDay,c1:PINK,c2:"#00B4D8"});setNewLabel("");setNewSub("");setNewDay("");setShowCreate(false);}} style={{...ACTION,flex:1,background:PINK,color:C1,borderColor:PINK}}>Crear</button><button onClick={()=>setShowCreate(false)} style={{...ACTION,flex:1,background:C2}}>Cancelar</button></div></div> : <button onClick={()=>setShowCreate(true)} style={{ ...ACTION, width:"100%", marginTop:14, background:C2, borderStyle:"dashed", display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}><Plus size={14}/> Crear rutina</button>}
     </div>
   );
 }
@@ -727,18 +732,41 @@ function SyncPanel({ open, onClose, session, mode, message, email, setEmail, pas
   );
 }
 
+// ── ACCESO ────────────────────────────────────────────────────────────────
+function LoginPage({ email, setEmail, password, setPassword, mode, message, onPasswordSignIn, onSendLink }) {
+  const status = mode === "sending" ? "Enviando enlace…" : mode === "sent" ? "Revisa tu correo para continuar." : mode === "error" ? (message || "No fue posible iniciar sesión.") : "";
+  return <div style={{ background:BG, color:TX, minHeight:"100vh", fontFamily:FD, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
+    <div style={{ width:"100%", maxWidth:380 }}>
+      <div style={{ fontFamily:FBB, fontSize:34, fontWeight:850, letterSpacing:-1.8, marginBottom:10 }}>GYM<span style={{ color:PINK }}>TRACK</span></div>
+      <div style={{ fontSize:15, color:TX2, lineHeight:1.45, marginBottom:30 }}>Tu entrenamiento, siempre actualizado en todos tus dispositivos.</div>
+      <div style={{ ...PANEL, padding:18 }}>
+        <div style={{ ...MONO, color:PINK, marginBottom:14 }}>INICIAR SESIÓN</div>
+        <input value={email} onChange={event=>setEmail(event.target.value)} type="email" inputMode="email" autoComplete="email" placeholder="tu@correo.com" style={{ ...INPUT, marginBottom:9 }}/>
+        <input value={password} onChange={event=>setPassword(event.target.value)} type="password" autoComplete="current-password" placeholder="Contraseña" style={{ ...INPUT, marginBottom:12 }}/>
+        <button onClick={onPasswordSignIn} disabled={!email.trim() || !password} style={{ ...ACTION, width:"100%", background:PINK, color:C1, borderColor:PINK }}>Entrar</button>
+        <button onClick={onSendLink} disabled={!email.trim() || mode==="sending"} style={{ background:"none", border:"none", color:MU, fontFamily:FD, fontSize:11, cursor:"pointer", padding:0, marginTop:14 }}>No tengo contraseña · Enviar enlace</button>
+        {status && <div style={{ fontSize:11, color:mode==="error"?"#FB7185":TX2, lineHeight:1.45, marginTop:13 }}>{status}</div>}
+      </div>
+    </div>
+  </div>;
+}
+
 // ── MAIN ──────────────────────────────────────────────────────────────────
 export default function GymTracker() {
   const [tab,       setTab      ] = useState("hoy");
   const [routine,   setRoutine  ] = useState("principal");
   const [setProgress, setSetProgress] = useState({});
   const [sessionExercises, setSessionExercises] = useState({});
+  const [routineOrder, setRoutineOrder] = useState({});
+  const [customSessions, setCustomSessions] = useState({ principal:[], mantenimiento:[] });
+  const [sessionMeta, setSessionMeta] = useState({});
   const [runs,      setRuns     ] = useState([]);
   const [loaded,    setLoaded   ] = useState(false);
   const [semId,     setSemId    ] = useState(null);
   const [rkm,setRkm]=useState(""); const [rmin,setRmin]=useState(""); const [rsec,setRsec]=useState("");
   const [rtype,setRtype]=useState("z2"); const [pace,setPace]=useState(null);
   const [cloudSession, setCloudSession] = useState(null);
+  const [authReady, setAuthReady] = useState(!isSupabaseConfigured);
   const [syncOpen, setSyncOpen] = useState(false);
   const [syncEmail, setSyncEmail] = useState("");
   const [syncPassword, setSyncPassword] = useState("");
@@ -758,10 +786,10 @@ export default function GymTracker() {
     (async () => {
       try {
         const w = isoWeek();
-        const [sw,sd,ssp,sse,sr,srt,sc,sa,sdel] = await Promise.all([
+        const [sw,sd,ssp,sse,sr,srt,sc,sa,sdel,sro,scs,ssm] = await Promise.all([
           store.get("week"), store.get("done"), store.get("setProgress"), store.get("sessionExercises"),
           store.get("runs"), store.get("routine"), store.get("custom"),
-          store.get("addedEx"), store.get("deletedEx"),
+          store.get("addedEx"), store.get("deletedEx"), store.get("routineOrder"), store.get("customSessions"), store.get("sessionMeta"),
         ]);
         const nextSessionExercises = sse ?? migrateLegacy(sc||{}, sa||{}, sdel||[], ALL_FLAT);
         setSessionExercises(nextSessionExercises);
@@ -781,6 +809,9 @@ export default function GymTracker() {
         setSetProgress(nextProgress);
         setRuns(sr||[]);
         if (srt) setRoutine(srt);
+        setRoutineOrder(sro || {});
+        setCustomSessions(scs || { principal:[], mantenimiento:[] });
+        setSessionMeta(ssm || {});
         setLoaded(true);
       } catch (err) {
         console.error("Error al cargar datos de almacenamiento local:", err);
@@ -802,8 +833,9 @@ export default function GymTracker() {
     let active = true;
     supabase.auth.getSession().then(({ data, error }) => {
       if (!active) return;
-      if (error) { setSyncMode("error"); setSyncMessage("No fue posible recuperar la sesión."); return; }
+      if (error) { setSyncMode("error"); setSyncMessage("No fue posible recuperar la sesión."); setAuthReady(true); return; }
       setCloudSession(data.session || null);
+      setAuthReady(true);
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       if (active) setCloudSession(nextSession);
@@ -1048,13 +1080,32 @@ export default function GymTracker() {
     [entry.order[from], entry.order[to]] = [entry.order[to], entry.order[from]];
     await saveSessionExercises({ ...sessionExercises, [sid]:entry });
   };
+  const saveRoutineOrder = async next => { setRoutineOrder(next); await store.set("routineOrder", next); };
+  const reorderRoutine = async (fromId, toId) => {
+    const current = activeSessions.map(s => s.id); const from=current.indexOf(fromId), to=current.indexOf(toId);
+    if (from < 0 || to < 0 || from === to) return;
+    current.splice(to, 0, current.splice(from, 1)[0]);
+    await saveRoutineOrder({ ...routineOrder, [routine]:current });
+  };
+  const addRoutine = async fields => {
+    const session = { id:`session-${Date.now()}`, label:fields.label, sub:fields.sub || "Entrenamiento", day:fields.day === "" ? undefined : Number(fields.day), c1:fields.c1, c2:fields.c2, anyOne:false, exercises:[] };
+    const next = { ...customSessions, [routine]:[...(customSessions[routine] || []), session] };
+    setCustomSessions(next); await store.set("customSessions", next);
+  };
+  const saveRoutineMeta = async (id, fields) => { const next={ ...sessionMeta, [id]:{ ...(sessionMeta[id] || {}), ...fields } }; setSessionMeta(next); await store.set("sessionMeta", next); };
   const calcPace = () => { const k=parseFloat(rkm),m=parseInt(rmin)||0,s=parseInt(rsec)||0; if(!k||k<=0||m+s===0)return; const tot=m*60+s,ps=tot/k,pm=Math.floor(ps/60),pr=Math.round(ps%60); setPace({km:k,min:m,sec:s,pace:`${pm}:${String(pr).padStart(2,"0")}`,kmh:(k/(tot/3600)).toFixed(1)}); };
   const saveRun  = async () => { if(!pace)return; const n=[...runs,{...pace,type:rtype,date:new Date().toLocaleDateString("es-CL"),ts:Date.now()}]; setRuns(n); await store.set("runs",n); setPace(null); setRkm(""); setRmin(""); setRsec(""); };
   const deleteRun = async i => { const n=runs.filter((_,j)=>j!==i); setRuns(n); await store.set("runs",n); };
   const clearRuns = async () => { setRuns([]); await store.set("runs",[]); };
   const switchRoutine = async r => { setRoutine(r); setSemId(null); await store.set("routine",r); };
 
-  const activeSessions = routine === "principal" ? MAIN : MANT;
+  const sourceSessions = routine === "principal" ? MAIN : MANT;
+  const allEffectiveSessions = [...sourceSessions, ...(customSessions[routine] || [])].map(session => ({ ...session, ...(sessionMeta[session.id] || {}) }));
+  const ids = routineOrder[routine] || [];
+  const activeSessions = [...allEffectiveSessions].sort((a,b) => {
+    const ai = ids.indexOf(a.id), bi = ids.indexOf(b.id);
+    return (ai < 0 ? Number.MAX_SAFE_INTEGER : ai) - (bi < 0 ? Number.MAX_SAFE_INTEGER : bi);
+  });
   const todayN = new Date().getDay();
   const progressSessions = activeSessions.filter(session => !session.optional || resolveSession(session, sessionExercises[session.id]).items.some(ex => exProgress(ex,setProgress) > 0));
   const activeItems = progressSessions.flatMap(s => resolveSession(s, sessionExercises[s.id]).items);
@@ -1062,7 +1113,8 @@ export default function GymTracker() {
   const progressSum = activeItems.reduce((sum,ex)=>sum + exProgress(ex,setProgress)/exTotal(ex),0);
   const wPct = totalEx ? Math.round((progressSum/totalEx)*100) : 0;
 
-  if (!loaded) return <div style={{background:BG,height:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:FM,fontSize:10,letterSpacing:3,color:MU}}>CARGANDO / 00</div>;
+  if (!loaded || !authReady) return <div style={{background:BG,height:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:FM,fontSize:10,letterSpacing:3,color:MU}}>CARGANDO</div>;
+  if (isSupabaseConfigured && !cloudSession) return <LoginPage email={syncEmail} setEmail={setSyncEmail} password={syncPassword} setPassword={setSyncPassword} mode={syncMode} message={syncMessage} onPasswordSignIn={signInWithPassword} onSendLink={sendMagicLink}/>;
 
   const sp = { setProgress, onToggleSimple:toggleSimple, onToggleSet:toggleSet, sessionExercises, onSaveOverride:saveOverride, onAddEx:addEx, onDeleteEx:deleteEx, onMoveEx:moveEx };
 
@@ -1106,7 +1158,7 @@ export default function GymTracker() {
 
       <main>
         {tab==="hoy"      && <HoyView today={todayN} sessions={activeSessions} {...sp}/>}
-        {tab==="semana"   && <SemanaView sessions={activeSessions} {...sp} semId={semId} setSemId={setSemId}/>}
+        {tab==="semana"   && <SemanaView sessions={activeSessions} {...sp} semId={semId} setSemId={setSemId} onReorder={reorderRoutine} onAddRoutine={addRoutine} onSaveRoutine={saveRoutineMeta}/>}
         {tab==="carreras" && <CarrerasView runs={runs} rkm={rkm} setRkm={setRkm} rmin={rmin} setRmin={setRmin} rsec={rsec} setRsec={setRsec} rtype={rtype} setRtype={setRtype} pace={pace} onCalc={calcPace} onSave={saveRun} onDelete={deleteRun} onClear={clearRuns}/>}
       </main>
 
