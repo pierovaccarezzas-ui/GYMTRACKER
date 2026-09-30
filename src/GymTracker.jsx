@@ -739,6 +739,7 @@ export default function GymTracker() {
   const [syncEmail, setSyncEmail] = useState("");
   const [syncPassword, setSyncPassword] = useState("");
   const [syncMode, setSyncMode] = useState(isSupabaseConfigured ? "checking" : "error");
+  const [syncConfirmed, setSyncConfirmed] = useState(false);
   const [syncMessage, setSyncMessage] = useState("");
   const syncModeRef = useRef(syncMode);
   const applyingCloudRef = useRef(false);
@@ -834,6 +835,7 @@ export default function GymTracker() {
         return;
       }
       await store.set(SYNC_META_KEY, { fingerprint:payloadFingerprint(payload), updatedAt:data?.updated_at || new Date().toISOString() });
+      setSyncConfirmed(true);
       setSyncMode("synced");
       setSyncMessage("");
     } finally {
@@ -851,6 +853,7 @@ export default function GymTracker() {
     let active = true;
     (async () => {
       setSyncMode("checking");
+      setSyncConfirmed(false);
       const { data, error } = await supabase
         .from("gymtrack_state")
         .select("payload, updated_at")
@@ -877,10 +880,11 @@ export default function GymTracker() {
           return;
         }
         await store.set(SYNC_META_KEY, { fingerprint:cloudFingerprint, updatedAt:data.updated_at });
-        if (active) setSyncMode("synced");
+        if (active) { setSyncConfirmed(true); setSyncMode("synced"); }
         return;
       }
       cloudConflictRef.current = data.payload;
+      setSyncConfirmed(false);
       setSyncMode("conflict");
     })();
     return () => { active = false; };
@@ -981,6 +985,7 @@ export default function GymTracker() {
     if (!supabase) return;
     await supabase.auth.signOut();
     setCloudSession(null);
+    setSyncConfirmed(false);
     setSyncMode("checking");
   };
 
@@ -1079,8 +1084,8 @@ export default function GymTracker() {
           </div>
         </div>
         <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:8 }}>
-          <button onClick={()=>setSyncOpen(value=>!value)} style={{ background:"none", border:"none", color:cloudSession && syncMode==="synced"?PINK:MU, cursor:"pointer", display:"flex", alignItems:"center", gap:5, padding:0, fontFamily:FM, fontSize:8, letterSpacing:1, textTransform:"uppercase" }}>
-            <Cloud size={13}/>{cloudSession ? (syncMode==="synced" ? "Sincronizado" : "Pendiente") : "Sincronizar"}
+          <button onClick={()=>setSyncOpen(value=>!value)} style={{ background:"none", border:"none", color:cloudSession && (syncMode==="synced" || syncConfirmed)?PINK:MU, cursor:"pointer", display:"flex", alignItems:"center", gap:5, padding:0, fontFamily:FM, fontSize:8, letterSpacing:1, textTransform:"uppercase" }}>
+            <Cloud size={13}/>{cloudSession ? ((syncMode==="synced" || syncConfirmed) ? "Sincronizado" : "Pendiente") : "Sincronizar"}
           </button>
         </div>
         <SyncPanel open={syncOpen} onClose={()=>setSyncOpen(false)} session={cloudSession} mode={syncMode} message={syncMessage} email={syncEmail} setEmail={setSyncEmail} password={syncPassword} setPassword={setSyncPassword} onPasswordSignIn={signInWithPassword} onSendLink={sendMagicLink} onSavePassword={savePassword} onUpload={uploadLocalState} onUseCloud={useCloudCopy} onSignOut={signOutCloud}/>
