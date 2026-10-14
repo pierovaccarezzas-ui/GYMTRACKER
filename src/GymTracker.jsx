@@ -1,53 +1,10 @@
-import { useState, useEffect, useRef, useCallback } from "react";
-import { Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, MoreVertical, Pencil, X, Trash2, Plus, Cloud, LogOut, Mail, Settings } from "lucide-react";
-import { isSupabaseConfigured, supabase } from "./supabase";
-
-// ── STORAGE ───────────────────────────────────────────────────────────────
-let onLocalStoreChange = null;
-const store = {
-  async get(k) {
-    try { if (window.storage?.get) { const r = await window.storage.get(k); return r ? JSON.parse(r.value) : null; } } catch { /* usar localStorage */ }
-    try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : null; } catch { /* almacenamiento no disponible */ return null; }
-  },
-  async set(k, v) {
-    try {
-      if (window.storage?.set) {
-        await window.storage.set(k, JSON.stringify(v));
-        onLocalStoreChange?.(k);
-        return;
-      }
-    } catch { /* intentar localStorage */ }
-    try {
-      localStorage.setItem(k, JSON.stringify(v));
-      onLocalStoreChange?.(k);
-    } catch { /* no hay almacenamiento disponible */ }
-  },
-};
-const CLOUD_STATE_KEYS = [
-  "week", "done", "custom", "addedEx", "deletedEx", "runs", "routine",
-  "setProgress", "sessionExercises", "warmupDone", "customSessions",
-  "deletedSessions", "sessionWarmups", "todaySelection", "routineOrder", "sessionMeta",
-];
-const SYNC_META_KEY = "supabaseSyncMeta";
-
-async function snapshotLocalState() {
-  const entries = await Promise.all(CLOUD_STATE_KEYS.map(async key => [key, await store.get(key)]));
-  return Object.fromEntries(entries.filter(([, value]) => value !== null));
-}
-function stableSerialize(value) {
-  if (Array.isArray(value)) return `[${value.map(stableSerialize).join(",")}]`;
-  if (value && typeof value === "object") return `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${stableSerialize(value[key])}`).join(",")}}`;
-  return JSON.stringify(value);
-}
-function payloadFingerprint(payload) {
-  return stableSerialize(payload || {});
-}
-function hasTrainingData(payload) {
-  return ["done", "custom", "addedEx", "deletedEx", "runs", "setProgress", "sessionExercises", "warmupDone", "customSessions", "deletedSessions", "sessionWarmups"].some(key => {
-    const value = payload?.[key];
-    return Array.isArray(value) ? value.length > 0 : Boolean(value && typeof value === "object" && Object.keys(value).length > 0);
-  });
-}
+import { useState, useEffect, useRef } from "react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, MoreVertical, Pencil, X, Trash2, Plus, Cloud, LogOut, Settings } from "lucide-react";
+import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, signOut } from "firebase/auth";
+import { auth, firebaseConfigurationError, isFirebaseConfigured } from "./firebase";
+import { store, sync } from "./sync/index.js";
+import { parseBackupFile, describeBackup } from "./backup.js";
+function downloadBackup(backup) { const url=URL.createObjectURL(new Blob([JSON.stringify(backup,null,2)],{type:"application/json"})); const a=document.createElement("a"); a.href=url; a.download="gymtrack-respaldo-"+new Date().toISOString().slice(0,10)+".json"; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1000); }
 
 function nowStamp() { return Date.now(); }
 
@@ -676,76 +633,10 @@ function CarrerasView({ runs, rkm, setRkm, rmin, setRmin, rsec, setRsec, rtype, 
 }
 
 // ── SINCRONIZACIÓN ────────────────────────────────────────────────────────
-function SyncPanel({ open, onClose, session, mode, message, email, setEmail, password, setPassword, onPasswordSignIn, onSendLink, onSavePassword, onUpload, onUseCloud, onSignOut }) {
+function SyncPanel({open,onClose,user,status,message,email,setEmail,password,setPassword,busy,onLogin,onRegister,onReset,onAdopt,onUseCloud,onSignOut,onRetry,onExport}) {
   if (!open) return null;
-  const status = {
-    checking: "Comprobando la copia de Supabase…",
-    synced: "Tus cambios se guardan automáticamente en todos tus dispositivos.",
-    import: "Encontramos datos locales. Súbelos solo si esta es la copia que quieres conservar.",
-    conflict: "Hay datos distintos en este dispositivo y en Supabase. Elige cuál conservar antes de continuar.",
-    sending: "Enviando el enlace de acceso…",
-    sent: "Abre el enlace en Chrome y crea tu contraseña desde esa sesión.",
-    passwordSaved: "Contraseña guardada. Ya puedes iniciar sesión directamente desde el PWA.",
-    error: message || "No fue posible sincronizar ahora.",
-  }[mode];
-
-  return (
-    <div style={{ ...PANEL, marginTop:10, padding:14, background:C1 }}>
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
-        <div style={{ ...MONO, color:PINK, fontSize:8 }}>SINCRONIZACIÓN / SUPABASE</div>
-        <button onClick={onClose} aria-label="Cerrar sincronización" style={{ background:"none", border:"none", color:MU, cursor:"pointer", display:"flex", padding:2 }}><X size={15}/></button>
-      </div>
-      {!isSupabaseConfigured ? (
-        <div style={{ fontSize:11, color:TX2, lineHeight:1.45 }}>Falta configurar este dispositivo.</div>
-      ) : !session ? (
-        <>
-          <div style={{ fontSize:11, color:TX2, lineHeight:1.45, marginBottom:10 }}>Usa el mismo correo y contraseña en tu teléfono y computador para guardar una sola copia.</div>
-          <input value={email} onChange={event=>setEmail(event.target.value)} type="email" inputMode="email" autoComplete="email" placeholder="tu@correo.com" style={{ ...INPUT, marginBottom:8 }}/>
-          <input value={password} onChange={event=>setPassword(event.target.value)} type="password" autoComplete="current-password" placeholder="Contraseña" style={{ ...INPUT, marginBottom:8 }}/>
-          <button onClick={onPasswordSignIn} disabled={!email.trim() || !password} style={{ ...ACTION, width:"100%", background:PINK, color:C1, borderColor:PINK }}>Entrar</button>
-          <button onClick={onSendLink} disabled={!email.trim() || mode==="sending"} style={{ background:"none", border:"none", cursor:"pointer", color:MU, fontSize:10, padding:0, marginTop:10, textAlign:"left" }}><Mail size={12} style={{ verticalAlign:"middle", marginRight:5 }}/>No tengo contraseña: enviar enlace</button>
-          {status && <div style={{ fontSize:10, color:mode==="error"?"#FB7185":TX2, lineHeight:1.45, marginTop:9 }}>{status}</div>}
-        </>
-      ) : (
-        <>
-          <div style={{ fontSize:10, color:TX2, marginBottom:8 }}>{session.user.email}</div>
-          <div style={{ fontSize:11, color:mode==="error"?"#FB7185":TX2, lineHeight:1.45 }}>{status}</div>
-          <div style={{ marginTop:10, paddingTop:10, borderTop:`1px solid ${HAIR}` }}>
-            <div style={{ ...MONO, color:MU, fontSize:7, marginBottom:6 }}>Contraseña para entrar desde el PWA</div>
-            <div style={{ display:"flex", gap:8 }}>
-              <input value={password} onChange={event=>setPassword(event.target.value)} type="password" autoComplete="new-password" placeholder="Mínimo 8 caracteres" style={{ ...INPUT, flex:1, minWidth:0, minHeight:38, padding:"8px 10px" }}/>
-              <button onClick={onSavePassword} disabled={password.length<8} style={{ ...ACTION, minHeight:38, background:C3, padding:"0 10px" }}>Guardar</button>
-            </div>
-          </div>
-          {mode==="import" && <button onClick={onUpload} style={{ ...ACTION, width:"100%", marginTop:10, background:PINK, color:C1, borderColor:PINK }}>Subir datos de este dispositivo</button>}
-          {mode==="conflict" && <div style={{ display:"flex", gap:8, marginTop:10 }}>
-            <button onClick={onUseCloud} style={{ ...ACTION, flex:1, minHeight:44, background:C3 }}>Usar Supabase</button>
-            <button onClick={onUpload} style={{ ...ACTION, flex:1, minHeight:44, background:PINK, color:C1, borderColor:PINK }}>Conservar este dispositivo</button>
-          </div>}
-          <button onClick={onSignOut} style={{ background:"none", border:"none", cursor:"pointer", color:MU, fontSize:10, display:"flex", alignItems:"center", gap:5, marginTop:11, padding:0 }}><LogOut size={12}/>Cerrar sesión</button>
-        </>
-      )}
-    </div>
-  );
-}
-
-// ── ACCESO ────────────────────────────────────────────────────────────────
-function LoginPage({ email, setEmail, password, setPassword, mode, message, onPasswordSignIn, onSendLink }) {
-  const status = mode === "sending" ? "Enviando enlace…" : mode === "sent" ? "Revisa tu correo para continuar." : mode === "error" ? (message || "No fue posible iniciar sesión.") : "";
-  return <div style={{ background:BG, color:TX, minHeight:"100vh", fontFamily:FD, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
-    <div style={{ width:"100%", maxWidth:380 }}>
-      <div style={{ fontFamily:FBB, fontSize:34, fontWeight:850, letterSpacing:-1.8, marginBottom:10 }}>GYM<span style={{ color:PINK }}>TRACK</span></div>
-      <div style={{ fontSize:15, color:TX2, lineHeight:1.45, marginBottom:30 }}>Tu entrenamiento, siempre actualizado en todos tus dispositivos.</div>
-      <div style={{ ...PANEL, padding:18 }}>
-        <div style={{ ...MONO, color:PINK, marginBottom:14 }}>INICIAR SESIÓN</div>
-        <input value={email} onChange={event=>setEmail(event.target.value)} type="email" inputMode="email" autoComplete="email" placeholder="tu@correo.com" style={{ ...INPUT, marginBottom:9 }}/>
-        <input value={password} onChange={event=>setPassword(event.target.value)} type="password" autoComplete="current-password" placeholder="Contraseña" style={{ ...INPUT, marginBottom:12 }}/>
-        <button onClick={onPasswordSignIn} disabled={!email.trim() || !password} style={{ ...ACTION, width:"100%", background:PINK, color:C1, borderColor:PINK }}>Entrar</button>
-        <button onClick={onSendLink} disabled={!email.trim() || mode==="sending"} style={{ background:"none", border:"none", color:MU, fontFamily:FD, fontSize:11, cursor:"pointer", padding:0, marginTop:14 }}>No tengo contraseña · Enviar enlace</button>
-        {status && <div style={{ fontSize:11, color:mode==="error"?"#FB7185":TX2, lineHeight:1.45, marginTop:13 }}>{status}</div>}
-      </div>
-    </div>
-  </div>;
+  const labels={local:"Guardado en este dispositivo. Inicia sesión para sincronizar.",connecting:"Conectando. Puedes seguir entrenando.",offline:"Sin conexión. Los cambios se enviarán al reconectar.",pending:"Cambios pendientes de confirmación.",synced:"Cambios confirmados en Firebase.",conflict:"Elige la copia que deseas conservar.",error:"No se pudo sincronizar. Tus datos locales siguen disponibles."};
+  return <div style={{...PANEL,marginTop:10,padding:14,background:C1}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}><div style={{...MONO,color:PINK,fontSize:8}}>SINCRONIZACIÓN / FIREBASE</div><button onClick={onClose} aria-label="Cerrar sincronización" style={{background:"none",border:0,color:MU,cursor:"pointer"}}><X size={15}/></button></div><div role="status" style={{fontSize:11,color:TX2,lineHeight:1.5}}>{status.message || labels[status.state] || labels.local}</div>{!isFirebaseConfigured ? <p style={{fontSize:11,color:YELLOW}}>La app permanece disponible localmente hasta terminar la configuración de Firebase.</p> : !user ? <><input aria-label="Correo electrónico" value={email} onChange={e=>setEmail(e.target.value)} type="email" autoComplete="email" placeholder="tu@correo.com" style={{...INPUT,marginTop:12}}/><input aria-label="Contraseña" value={password} onChange={e=>setPassword(e.target.value)} type="password" autoComplete="current-password" placeholder="Contraseña" style={{...INPUT,marginTop:8}}/><div style={{display:"flex",gap:8,marginTop:10}}><button onClick={onLogin} disabled={busy||!email.trim()||!password} style={{...ACTION,flex:1,background:PINK,color:C1}}>Entrar</button><button onClick={onRegister} disabled={busy||!email.trim()||password.length<8} style={{...ACTION,flex:1,background:C3}}>Crear cuenta</button></div><button onClick={onReset} disabled={busy||!email.trim()} style={{background:"none",border:0,color:MU,fontSize:10,padding:"12px 0",cursor:"pointer"}}>Restablecer contraseña</button></> : <><div style={{fontSize:11,color:TX2,marginTop:10}}>{user.email}</div>{status.state==="conflict" && <div style={{display:"grid",gap:8,marginTop:10}}><button onClick={onAdopt} disabled={busy} style={{...ACTION,background:PINK,color:C1}}>Recuperar datos de este dispositivo</button><button onClick={onUseCloud} disabled={busy} style={{...ACTION,background:C2}}>Continuar con la copia de Firebase</button></div>}<button onClick={onRetry} disabled={busy} style={{...ACTION,width:"100%",marginTop:10,background:C2}}>Reintentar sincronización</button><button onClick={onSignOut} disabled={busy} style={{background:"none",border:0,color:MU,fontSize:10,padding:"12px 0",cursor:"pointer"}}><LogOut size={12}/> Cerrar sesión</button></>}<button onClick={onExport} style={{...ACTION,width:"100%",marginTop:8,background:C2}}>Descargar respaldo</button>{message && <div role="alert" style={{fontSize:11,color:YELLOW,lineHeight:1.5,marginTop:9}}>{message}</div>}</div>;
 }
 
 // ── MAIN ──────────────────────────────────────────────────────────────────
@@ -763,268 +654,12 @@ export default function GymTracker() {
   const [semId,     setSemId    ] = useState(null);
   const [rkm,setRkm]=useState(""); const [rmin,setRmin]=useState(""); const [rsec,setRsec]=useState("");
   const [rtype,setRtype]=useState("z2"); const [pace,setPace]=useState(null);
-  const [cloudSession, setCloudSession] = useState(null);
-  const [authReady, setAuthReady] = useState(!isSupabaseConfigured);
-  const [syncOpen, setSyncOpen] = useState(false);
-  const [syncEmail, setSyncEmail] = useState("");
-  const [syncPassword, setSyncPassword] = useState("");
-  const [syncMode, setSyncMode] = useState(isSupabaseConfigured ? "checking" : "error");
-  const [syncConfirmed, setSyncConfirmed] = useState(false);
-  const [syncMessage, setSyncMessage] = useState("");
-  const syncModeRef = useRef(syncMode);
-  const applyingCloudRef = useRef(false);
-  const syncTimerRef = useRef(null);
-  const cloudConflictRef = useRef(null);
-  const uploadInFlightRef = useRef(false);
-  const pendingSyncRef = useRef(false);
-  const uploadLocalStateRef = useRef(null);
-  const cloudUserId = cloudSession?.user?.id;
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const w = isoWeek();
-        const [sw,sd,ssp,sse,sr,,sc,sa,sdel,sro,scs,ssm,sds] = await Promise.all([
-          store.get("week"), store.get("done"), store.get("setProgress"), store.get("sessionExercises"),
-          store.get("runs"), store.get("routine"), store.get("custom"),
-          store.get("addedEx"), store.get("deletedEx"), store.get("routineOrder"), store.get("customSessions"), store.get("sessionMeta"), store.get("deletedSessions"),
-        ]);
-        const nextSessionExercises = sse ?? migrateLegacy(sc||{}, sa||{}, sdel||[], ALL_FLAT);
-        setSessionExercises(nextSessionExercises);
-        if (sse === null) await store.set("sessionExercises", nextSessionExercises);
-        let nextProgress = ssp || {};
-        if (sw !== w) {
-          nextProgress = {};
-          await store.set("week",w);
-          await store.set("setProgress",nextProgress);
-        } else if (ssp === null && sd) {
-          nextProgress = {};
-          ALL_FLAT.forEach(session => resolveSession(session,nextSessionExercises[session.id]).items.forEach(ex => {
-            nextProgress[ex.id] = sd[ex.id] ? exTotal(ex) : 0;
-          }));
-          await store.set("setProgress",nextProgress);
-        }
-        setSetProgress(nextProgress);
-        setRuns(sr||[]);
-        setRoutine("principal");
-        setRoutineOrder(sro || {});
-        setCustomSessions(scs || { principal:[], mantenimiento:[] });
-        setSessionMeta(ssm || {});
-        setDeletedSessions(sds || { principal:[], mantenimiento:[] });
-        setLoaded(true);
-      } catch (err) {
-        console.error("Error al cargar datos de almacenamiento local:", err);
-        // Fallback: usar datos vacíos para que la app cargue de todas formas
-        setSetProgress({});
-        setSessionExercises({});
-        setRuns([]);
-        setLoaded(true);
-      }
-    })();
-  }, []);
-
-  useEffect(() => {
-    syncModeRef.current = syncMode;
-  }, [syncMode]);
-
-  useEffect(() => {
-    if (!supabase) return undefined;
-    let active = true;
-    supabase.auth.getSession().then(({ data, error }) => {
-      if (!active) return;
-      if (error) { setSyncMode("error"); setSyncMessage("No fue posible recuperar la sesión."); setAuthReady(true); return; }
-      setCloudSession(data.session || null);
-      setAuthReady(true);
-    });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      if (active) setCloudSession(nextSession);
-    });
-    return () => { active = false; subscription.unsubscribe(); };
-  }, []);
-
-  const applyCloudPayload = async payload => {
-    applyingCloudRef.current = true;
-    try {
-      await Promise.all(CLOUD_STATE_KEYS.map(key => payload?.[key] === undefined ? Promise.resolve() : store.set(key, payload[key])));
-      await store.set(SYNC_META_KEY, { fingerprint:payloadFingerprint(payload), updatedAt:new Date().toISOString() });
-    } finally {
-      applyingCloudRef.current = false;
-    }
-  };
-
-  const uploadLocalState = async () => {
-    if (!supabase || !cloudUserId || uploadInFlightRef.current) return;
-    uploadInFlightRef.current = true;
-    pendingSyncRef.current = false;
-    setSyncMode("checking");
-    try {
-      const payload = await snapshotLocalState();
-      const { data, error } = await supabase
-        .from("gymtrack_state")
-        .upsert({ user_id:cloudUserId, payload, updated_at:new Date().toISOString() }, { onConflict:"user_id" })
-        .select("updated_at")
-        .single();
-      if (error) {
-        setSyncMode("error");
-        setSyncMessage("No fue posible guardar la copia de Supabase. Intenta de nuevo.");
-        return;
-      }
-      await store.set(SYNC_META_KEY, { fingerprint:payloadFingerprint(payload), updatedAt:data?.updated_at || new Date().toISOString() });
-      setSyncConfirmed(true);
-      setSyncMode("synced");
-      setSyncMessage("");
-    } finally {
-      uploadInFlightRef.current = false;
-      if (pendingSyncRef.current) window.setTimeout(() => { uploadLocalStateRef.current?.(); }, 0);
-    }
-  };
-
-  useEffect(() => {
-    uploadLocalStateRef.current = uploadLocalState;
-  });
-
-  useEffect(() => {
-    if (!loaded || !cloudUserId || !supabase) return undefined;
-    let active = true;
-    (async () => {
-      setSyncMode("checking");
-      setSyncConfirmed(false);
-      const { data, error } = await supabase
-        .from("gymtrack_state")
-        .select("payload, updated_at")
-        .eq("user_id", cloudUserId)
-        .maybeSingle();
-      if (!active) return;
-      if (error) {
-        setSyncMode("error");
-        setSyncMessage("No fue posible leer la copia de Supabase.");
-        return;
-      }
-      const local = await snapshotLocalState();
-      if (!data) {
-        setSyncMode(hasTrainingData(local) ? "import" : "synced");
-        return;
-      }
-      const localFingerprint = payloadFingerprint(local);
-      const cloudFingerprint = payloadFingerprint(data.payload);
-      const meta = await store.get(SYNC_META_KEY);
-      if (!hasTrainingData(local) || cloudFingerprint === localFingerprint || meta?.fingerprint === localFingerprint) {
-        if (cloudFingerprint !== localFingerprint) {
-          await applyCloudPayload(data.payload);
-          if (active) window.location.reload();
-          return;
-        }
-        await store.set(SYNC_META_KEY, { fingerprint:cloudFingerprint, updatedAt:data.updated_at });
-        if (active) { setSyncConfirmed(true); setSyncMode("synced"); }
-        return;
-      }
-      await applyCloudPayload(data.payload);
-      if (active) window.location.reload();
-    })();
-    return () => { active = false; };
-  }, [loaded, cloudUserId]);
-
-  useEffect(() => {
-    if (!supabase || !cloudUserId || syncMode !== "synced") return undefined;
-    const channel = supabase.channel(`gymtrack-state-${cloudUserId}`)
-      .on("postgres_changes", { event:"UPDATE", schema:"public", table:"gymtrack_state", filter:`user_id=eq.${cloudUserId}` }, async event => {
-        const cloudPayload = event.new?.payload;
-        if (!cloudPayload) return;
-        const local = await snapshotLocalState();
-        const localFingerprint = payloadFingerprint(local);
-        const cloudFingerprint = payloadFingerprint(cloudPayload);
-        if (localFingerprint === cloudFingerprint) return;
-        const meta = await store.get(SYNC_META_KEY);
-        if (meta?.fingerprint === localFingerprint) {
-          await applyCloudPayload(cloudPayload);
-          window.location.reload();
-          return;
-        }
-        cloudConflictRef.current = cloudPayload;
-        setSyncMode("conflict");
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [cloudUserId, syncMode]);
-
-  useEffect(() => {
-    onLocalStoreChange = key => {
-      if (key === SYNC_META_KEY || applyingCloudRef.current || !cloudSession) return;
-      if (syncModeRef.current !== "synced" && !uploadInFlightRef.current) return;
-      pendingSyncRef.current = true;
-      if (uploadInFlightRef.current) return;
-      window.clearTimeout(syncTimerRef.current);
-      syncTimerRef.current = window.setTimeout(() => { uploadLocalStateRef.current?.(); }, 800);
-    };
-    return () => {
-      window.clearTimeout(syncTimerRef.current);
-      onLocalStoreChange = null;
-    };
-  }, [cloudSession]);
-
-  const sendMagicLink = async () => {
-    if (!supabase || !syncEmail.trim()) return;
-    setSyncMode("sending");
-    const { error } = await supabase.auth.signInWithOtp({
-      email:syncEmail.trim(),
-      options:{ emailRedirectTo:window.location.origin },
-    });
-    if (error) { setSyncMode("error"); setSyncMessage("No fue posible enviar el enlace. Revisa el correo e intenta de nuevo."); return; }
-    setSyncMode("sent");
-  };
-
-  const signInWithPassword = async () => {
-    if (!supabase || !syncEmail.trim() || !syncPassword) return;
-    setSyncMode("checking");
-    const { data, error } = await supabase.auth.signInWithPassword({ email:syncEmail.trim(), password:syncPassword });
-    if (error) { setSyncMode("error"); setSyncMessage("Correo o contraseña incorrectos. Si aún no tienes contraseña, usa el enlace de acceso."); return; }
-    setCloudSession(data.session);
-  };
-
-  const savePassword = async () => {
-    if (!supabase || !cloudSession || syncPassword.length < 8) return;
-    setSyncMode("checking");
-    const { data:sessionData, error:sessionError } = await supabase.auth.getSession();
-    if (sessionError || !sessionData.session) {
-      setSyncMode("error");
-      setSyncMessage("La sesión ya no está activa. Envía un enlace nuevo, ábrelo en este mismo navegador y vuelve a intentarlo.");
-      return;
-    }
-    const { error } = await supabase.auth.updateUser({ password:syncPassword });
-    if (error) {
-      const reason = error.message.toLowerCase();
-      const message = reason.includes("reauthentication") || reason.includes("reauthenticate")
-        ? "Supabase exige verificar esta sesión otra vez. Envía un enlace nuevo, ábrelo en este navegador y vuelve a guardar la contraseña."
-        : reason.includes("session")
-          ? "La sesión ya no está activa. Envía un enlace nuevo, ábrelo en este mismo navegador y vuelve a intentarlo."
-          : reason.includes("same_password") || reason.includes("different from the old password")
-            ? "Esa contraseña ya está guardada. Úsala para entrar desde el PWA."
-            : reason.includes("password")
-              ? "Supabase rechazó la contraseña. Usa una de al menos 8 caracteres y vuelve a intentarlo."
-              : "No fue posible guardar la contraseña. Intenta de nuevo.";
-      setSyncMode("error");
-      setSyncMessage(message);
-      return;
-    }
-    setSyncPassword("");
-    setSyncMode("passwordSaved");
-  };
-
-  const useCloudCopy = async () => {
-    if (!cloudConflictRef.current) return;
-    await applyCloudPayload(cloudConflictRef.current);
-    window.location.reload();
-  };
-
-  const signOutCloud = async () => {
-    if (!supabase) return;
-    await supabase.auth.signOut();
-    setCloudSession(null);
-    setSyncConfirmed(false);
-    setSyncMode("checking");
-  };
-
-  const saveSetProgress = async n => { setSetProgress(n); await store.set("setProgress",n); };
+  const [cloudUser,setCloudUser]=useState(null); const [syncOpen,setSyncOpen]=useState(false); const [syncEmail,setSyncEmail]=useState(""); const [syncPassword,setSyncPassword]=useState(""); const [syncStatus,setSyncStatus]=useState({state:"local"}); const [actionMessage,setActionMessage]=useState(""); const [authBusy,setAuthBusy]=useState(false); const [importCandidate,setImportCandidate]=useState(null);
+  useEffect(()=>{const apply=p=>{const se=p.sessionExercises&&Object.keys(p.sessionExercises).length?p.sessionExercises:migrateLegacy(p.custom||{},p.addedEx||{},p.deletedEx||[],ALL_FLAT);setSessionExercises(se);setSetProgress(p.setProgress||{});setRuns(p.runs||[]);setRoutine(p.routine==="mantenimiento"?"mantenimiento":"principal");setRoutineOrder(p.routineOrder||{});setCustomSessions(p.customSessions||{principal:[],mantenimiento:[]});setSessionMeta(p.sessionMeta||{});setDeletedSessions(p.deletedSessions||{principal:[],mantenimiento:[]});setLoaded(true);};const un=store.subscribe(apply);apply(store.snapshot());return un;},[]);
+  useEffect(()=>{if(!auth)return;let stop=()=>{};return onAuthStateChanged(auth,user=>{stop();setCloudUser(user);if(user)stop=sync.start(user,setSyncStatus);else setSyncStatus({state:"local"});},()=>setActionMessage("No se pudo recuperar la sesión. Tus datos locales siguen disponibles."));},[]);
+  const accountAction=async fn=>{setAuthBusy(true);setActionMessage("");try{await fn();}catch(e){setActionMessage(({"auth/invalid-credential":"Correo o contraseña incorrectos.","auth/email-already-in-use":"Ya existe una cuenta con ese correo.","auth/weak-password":"Usa una contraseña de al menos 8 caracteres.","auth/network-request-failed":"No hay conexión con Firebase. Puedes seguir usando la app localmente."})[e.code]||e.message||"No se pudo completar la operación.");}finally{setAuthBusy(false);}};
+  const login=()=>accountAction(()=>signInWithEmailAndPassword(auth,syncEmail.trim(),syncPassword)); const register=()=>accountAction(()=>createUserWithEmailAndPassword(auth,syncEmail.trim(),syncPassword)); const resetPassword=()=>accountAction(async()=>{await sendPasswordResetEmail(auth,syncEmail.trim());setActionMessage("Si existe una cuenta con ese correo, recibirás instrucciones.");}); const signOutCloud=()=>accountAction(()=>signOut(auth)); const exportBackup=()=>downloadBackup(sync.exportBackup()); const importFile=async e=>{const f=e.target.files?.[0];e.target.value="";if(!f)return;try{setImportCandidate(parseBackupFile(await f.text()));}catch(x){setActionMessage(x.message);}}; const confirmImport=()=>accountAction(async()=>{downloadBackup(sync.exportBackup());await sync.importBackup(importCandidate.data);setImportCandidate(null);}); const persist=async(k,v)=>{const ok=await store.set(k,v);if(!ok)setActionMessage(store.getError()||"No se pudo guardar en este dispositivo.");return ok;};
+  const saveSetProgress = n => persist("setProgress",n);
   const toggleSimple = async ex => {
     const n = { ...setProgress, [ex.id]:exDone(ex,setProgress) ? 0 : 1 };
     await saveSetProgress(n);
@@ -1044,7 +679,7 @@ export default function GymTracker() {
       deleted: [...(current.deleted || [])],
     };
   };
-  const saveSessionExercises = async n => { setSessionExercises(n); await store.set("sessionExercises",n); };
+  const saveSessionExercises = n => persist("sessionExercises",n);
   const saveOverride = async (sid, id, fields) => {
     const entry = sessionEntry(sid);
     if (fields === null) delete entry.overrides[id];
@@ -1079,7 +714,7 @@ export default function GymTracker() {
     [entry.order[from], entry.order[to]] = [entry.order[to], entry.order[from]];
     await saveSessionExercises({ ...sessionExercises, [sid]:entry });
   };
-  const saveRoutineOrder = async next => { setRoutineOrder(next); await store.set("routineOrder", next); };
+  const saveRoutineOrder = next => persist("routineOrder",next);
   const reorderRoutine = async (fromId, toId) => {
     const current = activeSessions.map(s => s.id); const from=current.indexOf(fromId), to=current.indexOf(toId);
     if (from < 0 || to < 0 || from === to) return;
@@ -1089,21 +724,21 @@ export default function GymTracker() {
   const addRoutine = async fields => {
     const session = { id:`session-${Date.now()}`, label:fields.label, sub:fields.sub || "Entrenamiento", day:fields.day === "" ? undefined : Number(fields.day), c1:fields.c1, c2:fields.c2, anyOne:false, exercises:[] };
     const next = { ...customSessions, [routine]:[...(customSessions[routine] || []), session] };
-    setCustomSessions(next); await store.set("customSessions", next);
+    await persist("customSessions",next);
   };
-  const saveRoutineMeta = async (id, fields) => { const next={ ...sessionMeta, [id]:{ ...(sessionMeta[id] || {}), ...fields } }; setSessionMeta(next); await store.set("sessionMeta", next); };
+  const saveRoutineMeta = async (id, fields) => { const next={ ...sessionMeta, [id]:{ ...(sessionMeta[id] || {}), ...fields } }; await persist("sessionMeta",next); };
   const deleteRoutine = async id => {
     const session = activeSessions.find(item => item.id === id); if (!session) return;
     const progress = { ...setProgress }; resolveSession(session, sessionExercises[id]).items.forEach(ex => delete progress[ex.id]);
     await saveSetProgress(progress); const exercises={ ...sessionExercises }; delete exercises[id]; await saveSessionExercises(exercises);
-    const next={ ...deletedSessions, [routine]:[...(deletedSessions[routine] || []), id] }; setDeletedSessions(next); await store.set("deletedSessions",next); setSemId(null);
+    const next={ ...deletedSessions, [routine]:[...(deletedSessions[routine] || []), id] }; await persist("deletedSessions",next); setSemId(null);
   };
   const calcPace = () => { const k=parseFloat(rkm),m=parseInt(rmin)||0,s=parseInt(rsec)||0; if(!k||k<=0||m+s===0)return; const tot=m*60+s,ps=tot/k,pm=Math.floor(ps/60),pr=Math.round(ps%60); setPace({km:k,min:m,sec:s,pace:`${pm}:${String(pr).padStart(2,"0")}`,kmh:(k/(tot/3600)).toFixed(1)}); };
   const cancelRun = () => { setPace(null); setRkm(""); setRmin(""); setRsec(""); };
-  const saveRun  = async () => { if(!pace)return; const n=[...runs,{...pace,type:rtype,date:new Date().toLocaleDateString("es-CL"),ts:nowStamp()}]; await store.set("runs",n); setRuns(n); await syncLinkedRunProgress(n); cancelRun(); };
-  const deleteRun = async i => { const n=runs.filter((_,j)=>j!==i); await store.set("runs",n); setRuns(n); await syncLinkedRunProgress(n); };
-  const clearRuns = async () => { await store.set("runs",[]); setRuns([]); await syncLinkedRunProgress([]); };
-  const sourceSessions = MAIN;
+  const saveRun  = async () => { if(!pace)return; const n=[...runs,{...pace,type:rtype,date:new Date().toLocaleDateString("es-CL"),ts:nowStamp()}]; if(await persist("runs",n)){ await syncLinkedRunProgress(n); cancelRun(); } };
+  const deleteRun = async i => { const n=runs.filter((_,j)=>j!==i); if(await persist("runs",n)) await syncLinkedRunProgress(n); };
+  const clearRuns = async () => { if(await persist("runs",[])) await syncLinkedRunProgress([]); };
+  const sourceSessions = routine === "mantenimiento" ? MANT : MAIN;
   const allEffectiveSessions = [...sourceSessions, ...(customSessions[routine] || [])].filter(session => !(deletedSessions[routine] || []).includes(session.id)).map(session => ({ ...session, ...(sessionMeta[session.id] || {}) }));
   const ids = routineOrder[routine] || [];
   const activeSessions = [...allEffectiveSessions].sort((a,b) => {
@@ -1120,19 +755,6 @@ export default function GymTracker() {
     await saveSetProgress(next);
   };
 
-  const syncRelationalData = useCallback(async () => {
-    if (!supabase || !cloudUserId) return;
-    const sessions = activeSessions.map(session => ({ user_id:cloudUserId, session_id:session.id, label:session.label, subtitle:session.sub || null, day_of_week:session.day ?? null, optional:!!session.optional, updated_at:new Date().toISOString() }));
-    const exercises = activeSessions.flatMap(session => resolveSession(session, sessionExercises[session.id]).items.map(ex => ({ user_id:cloudUserId, session_id:session.id, exercise_id:ex.id, name:ex.name, exercise_type:ex.type || null, target:ex.target || null, sets_target:ex.sets || null, reps:ex.reps || null, completed_sets:exProgress(ex,setProgress), updated_at:new Date().toISOString() })));
-    const runRows = runs.map((run,index) => ({ user_id:cloudUserId, run_id:String(run.ts || `${run.date}-${index}`), run_date:run.date || null, run_type:run.type || null, km:run.km || null, minutes:run.min || null, seconds:run.sec || null, pace:run.pace || null, kmh:run.kmh || null, recorded_at:new Date().toISOString() }));
-    if (sessions.length) await supabase.from("training_sessions").upsert(sessions,{onConflict:"user_id,session_id"});
-    if (exercises.length) await supabase.from("exercise_progress").upsert(exercises,{onConflict:"user_id,session_id,exercise_id"});
-    const history = exercises.filter(ex => ex.completed_sets > 0).map(ex => ({ user_id:ex.user_id, week_id:isoWeek(), session_id:ex.session_id, exercise_id:ex.exercise_id, name:ex.name, target:ex.target, sets_target:ex.sets_target, completed_sets:ex.completed_sets, recorded_at:new Date().toISOString() }));
-    if (history.length) await supabase.from("exercise_history").upsert(history,{onConflict:"user_id,week_id,session_id,exercise_id"});
-    if (runRows.length) await supabase.from("run_entries").upsert(runRows,{onConflict:"user_id,run_id"});
-  }, [cloudUserId, activeSessions, sessionExercises, setProgress, runs]);
-  useEffect(() => { if (loaded && cloudUserId && syncMode === "synced") void syncRelationalData(); }, [loaded, cloudUserId, syncMode, syncRelationalData]);
-
   const previewDay = new URLSearchParams(window.location.search).get("preview");
   const todayN = import.meta.env.DEV && /^[0-6]$/.test(previewDay || "") ? Number(previewDay) : new Date().getDay();
   const progressSessions = activeSessions.filter(session => !session.optional || resolveSession(session, sessionExercises[session.id]).items.some(ex => exProgress(ex,setProgress) > 0));
@@ -1141,8 +763,7 @@ export default function GymTracker() {
   const progressSum = activeItems.reduce((sum,ex)=>sum + exProgress(ex,setProgress)/exTotal(ex),0);
   const wPct = totalEx ? Math.round((progressSum/totalEx)*100) : 0;
 
-  if (!loaded || !authReady) return <div style={{background:BG,height:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:FM,fontSize:10,letterSpacing:3,color:MU}}>CARGANDO</div>;
-  if (isSupabaseConfigured && !cloudSession) return <LoginPage email={syncEmail} setEmail={setSyncEmail} password={syncPassword} setPassword={setSyncPassword} mode={syncMode} message={syncMessage} onPasswordSignIn={signInWithPassword} onSendLink={sendMagicLink}/>;
+  if (!loaded) return <div style={{background:BG,height:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:FM,fontSize:10,letterSpacing:3,color:MU}}>CARGANDO</div>;
 
   const sp = { setProgress, onToggleSimple:toggleSimple, onToggleSet:toggleSet, sessionExercises, onSaveOverride:saveOverride, onAddEx:addEx, onDeleteEx:deleteEx, onMoveEx:moveEx };
 
@@ -1167,19 +788,15 @@ export default function GymTracker() {
             </div>
           </div>
         </div>
-        <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:8 }}>
-          <button onClick={()=>setSyncOpen(value=>!value)} style={{ background:"none", border:"none", color:cloudSession && (syncMode==="synced" || syncConfirmed)?PINK:MU, cursor:"pointer", display:"flex", alignItems:"center", gap:5, padding:0, fontFamily:FM, fontSize:8, letterSpacing:1, textTransform:"uppercase" }}>
-            <Cloud size={13}/>{cloudSession ? ((syncMode==="synced" || syncConfirmed) ? "Sincronizado" : "Pendiente") : "Sincronizar"}
-          </button>
-        </div>
-        <SyncPanel open={syncOpen} onClose={()=>setSyncOpen(false)} session={cloudSession} mode={syncMode} message={syncMessage} email={syncEmail} setEmail={setSyncEmail} password={syncPassword} setPassword={setSyncPassword} onPasswordSignIn={signInWithPassword} onSendLink={sendMagicLink} onSavePassword={savePassword} onUpload={uploadLocalState} onUseCloud={useCloudCopy} onSignOut={signOutCloud}/>
+        <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:8 }}><button onClick={()=>setSyncOpen(value=>!value)} style={{background:"none",border:0,color:syncStatus.state==="synced"?PINK:MU,cursor:"pointer",display:"flex",alignItems:"center",gap:5,padding:0,fontFamily:FM,fontSize:8,letterSpacing:1,textTransform:"uppercase"}}><Cloud size={13}/>{{synced:"Sincronizado",pending:"Pendiente",connecting:"Conectando",offline:"Sin conexión",conflict:"Revisar copias",error:"Revisar conexión",local:"Solo dispositivo"}[syncStatus.state]||"Solo dispositivo"}</button></div>
+        <SyncPanel open={syncOpen} onClose={()=>setSyncOpen(false)} user={cloudUser} status={syncStatus} message={actionMessage||firebaseConfigurationError||store.getError()} email={syncEmail} setEmail={setSyncEmail} password={syncPassword} setPassword={setSyncPassword} busy={authBusy} onLogin={login} onRegister={register} onReset={resetPassword} onAdopt={()=>accountAction(()=>sync.adoptLocal())} onUseCloud={()=>accountAction(()=>sync.useCloud())} onSignOut={signOutCloud} onRetry={()=>accountAction(()=>sync.retry())} onExport={exportBackup}/>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"3px 0 1px" }}><div style={{ ...MONO, color:MU, fontSize:8 }}>ENTRENAMIENTO</div><button onClick={()=>setTab("config")} aria-label="Configuración" style={{ background:"none", border:"none", color:TX2, padding:4, cursor:"pointer" }}><Settings size={16}/></button></div>
       </div>
 
       <main>
         {tab==="hoy"      && <HoyView today={todayN} sessions={activeSessions} {...sp} onOpenSession={id=>{setSemId(id);setTab("semana");}}/>}
         {tab==="semana"   && <SemanaView sessions={activeSessions} {...sp} semId={semId} setSemId={setSemId} onReorder={reorderRoutine} onAddRoutine={addRoutine} onSaveRoutine={saveRoutineMeta} onDeleteRoutine={deleteRoutine}/>}
-        {tab==="config" && <div style={{padding:16}}><div style={{...MONO,color:PINK,marginBottom:8}}>CONFIGURACIÓN</div><div style={{fontFamily:FBB,fontSize:30,fontWeight:800,letterSpacing:-1.2,marginBottom:18}}>Cuenta</div><div style={{...PANEL,padding:16}}><div style={{fontSize:13,fontWeight:700}}>{cloudSession?.user?.email || "Sin sesión"}</div><div style={{fontSize:11,color:TX2,marginTop:6}}>Tus entrenamientos se sincronizan de forma privada.</div><button onClick={signOutCloud} style={{...ACTION,width:"100%",background:C2,marginTop:16,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}><LogOut size={14}/> Cerrar sesión</button></div></div>}
+        {tab==="config" && <div style={{padding:16}}><div style={{...MONO,color:PINK,marginBottom:8}}>CONFIGURACIÓN</div><div style={{fontFamily:FBB,fontSize:30,fontWeight:800,letterSpacing:-1.2,marginBottom:18}}>Cuenta y respaldo</div><div style={{...PANEL,padding:16}}><div style={{fontSize:13,fontWeight:700}}>{cloudUser?.email||"Modo local"}</div><div style={{fontSize:11,color:TX2,lineHeight:1.5,marginTop:6}}>Puedes entrenar sin conexión. Inicia sesión con la misma cuenta en cada dispositivo para sincronizar.</div><button onClick={()=>setSyncOpen(true)} style={{...ACTION,width:"100%",background:C2,marginTop:16}}>Cuenta y sincronización</button><button onClick={exportBackup} style={{...ACTION,width:"100%",background:C2,marginTop:10}}>Descargar respaldo JSON</button><label style={{...ACTION,display:"flex",alignItems:"center",justifyContent:"center",background:C2,marginTop:10,padding:10}}>Seleccionar respaldo JSON o CSV<input aria-label="Importar respaldo" type="file" accept=".json,.csv,application/json,text/csv" onChange={importFile} style={{display:"none"}}/></label>{importCandidate&&<div style={{marginTop:12,border:"1px solid "+BR,borderRadius:8,padding:10}}><div style={{fontSize:11,color:TX2,lineHeight:1.5}}>{describeBackup(importCandidate)}</div><div style={{fontSize:10,color:YELLOW,lineHeight:1.5,marginTop:6}}>Primero se descargará un respaldo de tu copia actual.</div><button onClick={confirmImport} disabled={authBusy} style={{...ACTION,width:"100%",background:PINK,color:C1,marginTop:10}}>Importar esta copia</button><button onClick={()=>setImportCandidate(null)} style={{...ACTION,width:"100%",background:C2,marginTop:8}}>Cancelar</button></div>}</div></div>}
         {tab==="carreras" && <CarrerasView runs={runs} rkm={rkm} setRkm={setRkm} rmin={rmin} setRmin={setRmin} rsec={rsec} setRsec={setRsec} rtype={rtype} setRtype={setRtype} pace={pace} onCalc={calcPace} onSave={saveRun} onCancel={cancelRun} onDelete={deleteRun} onClear={clearRuns}/>}
       </main>
 

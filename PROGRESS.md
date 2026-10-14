@@ -498,3 +498,11 @@
 - **Files or artifacts updated**: `FEATURE_LIST.json`, `PROGRESS.md`, `docs/plans/PLAN-005-professional-saas-redesign.md`.
 - **Known risk or unresolved issue**: None.
 - **Next best step**: Proceed to planning `ui-002` (Workout history & statistics) or other features.
+
+### Session 014
+
+- **Date**: 2026-10-14
+- **Goal**: Replace Supabase synchronization with Firebase Firestore local-first storage.
+- **Completed**: Restored Supabase only to export a private source backup (1 full state row, 6 runs, 47 progress rows, 40 history rows, 6 sessions); removed the Supabase runtime client; added Firebase Auth/Firestore configuration, per-record UID-scoped sync/outbox, offline data, backups/import, Firestore rules, and recovery controls.
+- **Verification**: 25 automated tests pass; 2 emulator tests skipped because the local Firebase emulator and Java are unavailable. Build/lint verification recorded separately.
+- **Pending**: Create Firestore database in Firebase console, deploy firestore.rules, then verify real account login and two-device sync.
