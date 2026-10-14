@@ -1,6 +1,6 @@
 {
   "project": "GymTrack PWA",
-  "last_updated": "2026-06-09T00:46:00-04:00",
+  "last_updated": "2026-10-14T13:12:53.206Z",
   "rules": {
     "single_active_feature": true,
     "passing_requires_evidence": true,
@@ -230,6 +230,19 @@
       "evidence": "Reviewer verified: Run ./init.sh successfully (exit code 0). The build is fully generated. Checked GymTracker.jsx and index.css for tokens matching PLAN-005: background is #070B14, text color #F4F7FB, accent is #22D3EE. Checked the contextual three-dot menu on each exercise card: it replaces the multiple always-visible action buttons with a compact 34px trigger menu containing Subir/Bajar/Editar/Borrar actions. Layout paddings, header height, and bottom nav height (58px) are minimized for SaaS mobile density without any overflow or layout breakage. No logical regressions or data-loss issues.",
       "plan_id": "PLAN-005",
       "notes": "Visual-only. Supersedes the visual outcome of ui-009 without changing its passing record or application logic. Implemented by Codex at the user's explicit request using the selected dark premium direction; awaiting Antigravity review."
+    },
+    {
+      "id": "sync-001",
+      "priority": 0,
+      "area": "core",
+      "title": "Firebase local-first synchronization",
+      "user_visible_behavior": "Training data remains usable offline and synchronizes privately between devices without page reloads.",
+      "status": "in_review",
+      "executor": "codex",
+      "verification": "npm test && ./init.sh && browser smoke; live Firestore emulator and two-device checks pending deployment.",
+      "evidence": "27 automated tests: 25 pass; 2 Firestore-emulator tests skipped because emulator/Java are unavailable.",
+      "plan_id": "PLAN-006",
+      "notes": "Firebase public configuration supplied. Supabase export captured locally before migration. Firestore rules still require deployment."
     }
   ]
 }

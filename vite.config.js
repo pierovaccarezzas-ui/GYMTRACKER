@@ -7,9 +7,9 @@ import { VitePWA } from 'vite-plugin-pwa'
 //  vite.config.appsscript.js por si alguna vez se necesita el HTML único.)
 // https://vite.dev/config/
 export default defineConfig({
-  // Solo estas dos variables de Supabase se incluyen en el bundle del navegador.
-  // No se usa un prefijo amplio para impedir exponer una clave secreta por error.
-  envPrefix: ['SUPABASE_URL', 'SUPABASE_PUBLISHABLE_KEY'],
+  // Only Firebase's public web configuration is exposed. Service-account keys
+  // must never be added here or to a VITE_ variable.
+  envPrefix: ['VITE_FIREBASE_API_KEY', 'VITE_FIREBASE_AUTH_DOMAIN', 'VITE_FIREBASE_PROJECT_ID', 'VITE_FIREBASE_APP_ID', 'VITE_FIREBASE_MESSAGING_SENDER_ID', 'VITE_FIREBASE_STORAGE_BUCKET'],
   plugins: [
     react(),
     VitePWA({
